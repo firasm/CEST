@@ -16,6 +16,9 @@ import nibabel
 with open('/Volumes/Data/Dropboxes/PhD./Dropbox/Studies/analysis/NecS3/NecS3.json','r') as infile:
     master_sheet = json.load(infile)
 
+#with open('/Users/firas/Desktop/Dropbox/Studies/analysis/NecS3/NecS3.json','r') as infile:
+#    master_sheet = json.load(infile)
+
 NecS3 = sarpy.Experiment('NecS3').find_scan_by_protocol('04')
 
 ################################
@@ -25,9 +28,21 @@ NecS3 = sarpy.Experiment('NecS3').find_scan_by_protocol('04')
 #for k,v in master_sheet.iteritems():
 #    
 #    try:
-#        name = k+'-1'
+#        name = k+'-2'
 #        
 #        sarpy.Scan(master_sheet[k]['24h-IR_A'][0]).pdata[0].export2nii(name)
+#        
+#    except:
+#        print k
+
+# Later realized I also need to get the day 1 images for LL comparisons
+
+#for k,v in master_sheet.iteritems():
+#    
+#    try:
+#        name = k+'-1'
+#        
+#        sarpy.Scan(master_sheet[k]['0h-IR_A'][0]).pdata[0].export2nii(name)
 #        
 #    except:
 #        print k
@@ -40,12 +55,21 @@ NecS3 = sarpy.Experiment('NecS3').find_scan_by_protocol('04')
 for k,v in master_sheet.iteritems():
    
     try: 
-        name = k+'-2'+'.nii'
-       
-        scan = sarpy.Scan(master_sheet[k]['24h-IR_A'][0])
-        roi = nibabel.load(name)
+        name1 = k+'-1'+'.nii'
+        name2 = k+'-2'+'.nii'
+
+        scan1 = sarpy.Scan(master_sheet[k]['0h-IR_A'][0])
+        scan2 = sarpy.Scan(master_sheet[k]['24h-IR_A'][0])              
         
-        scan.store_adata(key='IR_tumour_rois', data = roi)
+        roi1 = nibabel.load(name1)
+        roi2 = nibabel.load(name2)        
+        
+        scan1.store_adata(key='IR_tumour_rois', data = roi1.get_data()
+[:,:,:,0], force = True)
+        scan2.store_adata(key='IR_tumour_rois', data = roi2.get_data()[:,:,:,0], force = True)
 
     except:
-        print k
+        print('Error saving {0}'.format(k))
+
+
+
