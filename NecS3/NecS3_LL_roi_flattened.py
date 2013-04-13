@@ -52,7 +52,7 @@ for k,v in master_sheet.iteritems():
         roi_resample2 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi2,LL_2)
 
         curr_T1s1 = LL_1.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
-        curr_T1s2 = LL_2.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
+        curr_T1s2 = LL_2.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample2)
 
         T1_vals_day1.append( curr_T1s1[numpy.isfinite(curr_T1s1)] )
         T1_vals_day2.append( curr_T1s2[numpy.isfinite(curr_T1s2)] )
