@@ -50,27 +50,31 @@ for k,v in master_sheet.iteritems():
         roi_resample1 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi1,LL_1)      
         roi_resample2 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi2,LL_2)
 
-        curr_T1s1 = LL_1 * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
-        curr_T1s2 = LL_2 * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
+        curr_T1s1 = LL_1.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
+        curr_T1s2 = LL_2.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
 
-        T1_vals_day1.append(numpy.isfinite(curr_T1s1.flatten()))
-        T1_vals_day2.append(numpy.isfinite(curr_T1s2.flatten()))
+        T1_vals_day1.append( curr_T1s1[numpy.isfinite(curr_T1s1)] )
+        T1_vals_day2.append( curr_T1s2[numpy.isfinite(curr_T1s2)] )
         
     except:
         pylab.close('all')
-        print('Unknown error {0}'.format(k))
-        raise
+        print('Expected error, please ignore {0}'.format(k))
         
 # Now squash the lists together, and turn into an array
+# use an incomprehensible list comprehension, as named by someone on SE
+T1_vals_day1 = [item for sublist in T1_vals_day1 for item in sublist]
+T1_vals_day1 = numpy.array(T1_vals_day1)
 
-T1_vals_day1 = nump.array(T1_vals_day1).flatten()
-T1_vals_day2 = nump.array(T1_vals_day2).flatten()        
+T1_vals_day2 = [item for sublist in T1_vals_day2 for item in sublist]
+T1_vals_day2 = numpy.array(T1_vals_day2)
+
+
+
+bins = numpy.linspace(200,3500,50)
         
-        
-        
-        
-        
-        
+pylab.figure()        
+pylab.hist(T1_vals_day1, bins, alpha=0.6)
+pylab.hist(T1_vals_day2, bins, alpha=0.6)
         
         
         
