@@ -22,36 +22,51 @@ for pat in pat_list:
     master_sheet[nm[0]]={}
     
 # NecS1Hs01 - Day 2 imaging session not present 
-    
-    
-    
-    
-    if pat.get_SUBJECT_id()[0] == 'NecS3Hs12':
-        stdy1= pat.studies[0]
-        stdy2= pat.studies[3]
-    elif pat.get_SUBJECT_id()[0] == 'NecS3Hs04':
-        stdy1= pat.studies[0]
-        stdy2= pat.studies[2]
+          
+    if pat.get_SUBJECT_id()[0] == 'NecS1Hs01':
+        continue
+    elif pat.get_SUBJECT_id()[0] == 'NecS1Hs04':
+        continue
     elif len(pat.studies) != 3:
         print 'not 2 studies: %s ' % pat.get_SUBJECT_id()
-        continue
     else:
         stdy1 = pat.studies[0]
         stdy2 = pat.studies[1]
+        stdy3 = pat.studies[2]
 
-#    master_sheet[nm[0]]['0h'] = stdy1.shortdirname
-#    master_sheet[nm[0]]['24h'] = stdy2.shortdirname
-#    
-#    #LL
-#    scn = stdy1.find_scan_by_protocol('04_')
-#    if len(scn) > 1:
-#        print 'more than one LL on day 1 %s' % len(scn) + scn[0].shortdirname
-#    master_sheet[nm[0]]['0h-LL']= magic_tuple(scn[0])
-#    scn = stdy2.find_scan_by_protocol('04_')
-#    if len(scn) > 1:
-#        print 'more than one LL on day 2 %s' % len(scn) + scn[0].shortdirname
-#    master_sheet[nm[0]]['24h-LL']= magic_tuple(scn[0])
-#
+    master_sheet[nm[0]]['0h'] = stdy1.shortdirname
+    master_sheet[nm[0]]['24h'] = stdy2.shortdirname
+    master_sheet[nm[0]]['48h'] = stdy3.shortdirname
+
+    #LL
+    scn = stdy1.find_scan_by_protocol('04_')
+    if len(scn) != 1:
+        if len(scn) >1:
+            print 'LL weird on day 1 %s' % len(scn) + scn[0].shortdirname
+        else:
+            print 'LL weird on day 1 %s' % len(scn)
+    else:
+         master_sheet[nm[0]]['0h-LL']= magic_tuple(scn[0])
+    
+    scn = stdy2.find_scan_by_protocol('04_')
+    if len(scn) != 1:
+        if len(scn) >1:
+            print 'LL weird on day 2 %s' % len(scn) + scn[0].shortdirname
+        else:
+            print 'LL weird on day 2 %s' % len(scn)
+    else: 
+         master_sheet[nm[0]]['24h-LL']= magic_tuple(scn[0])
+
+    scn = stdy3.find_scan_by_protocol('04_')
+    if len(scn) != 1:
+        if len(scn) >1:
+            print 'LL weird on day 3 %s' % len(scn) + scn[0].shortdirname
+        else:
+            print 'LL weird on day 3 %s' % len(scn)
+    else:
+         master_sheet[nm[0]]['48h-LL']= magic_tuple(scn[0])
+    
+    
 #    #DCE 1 & 2         
 #    scn = stdy1.find_scan_by_protocol('06_')
 #    if len(scn) >= 2:
