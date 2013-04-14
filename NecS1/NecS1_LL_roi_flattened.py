@@ -17,7 +17,7 @@ import pylab
 import numpy
 import json
 
-with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS3/NecS3.json','r') as infile:
+with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS1/NecS1.json','r') as infile:
     master_sheet = json.load(infile)
 
 data_list = []
@@ -107,7 +107,7 @@ bins = numpy.linspace(200,3500,50)
 pylab.figure()        
 pylab.hist(T1_vals_day1, bins, alpha=0.6)
 pylab.hist(T1_vals_day2, bins, alpha=0.6)
-pylab.title('RF1106 animals from NecS3')
+pylab.title('Double Baseline Controls from NecS1')
         
 #        
 #        

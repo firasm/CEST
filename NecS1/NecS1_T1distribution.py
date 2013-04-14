@@ -34,18 +34,21 @@ for k,v in master_sheet.iteritems():
         key_list.append('24h-IR_A') #5
         key_list.append('T1map_LL') #6
         key_list.append('IR_tumour_rois') #7
-        
+
         LL_1 = sarpy.Scan(master_sheet[k][key_list[2]][0]).adata[key_list[6]]
         LL_2 = sarpy.Scan(master_sheet[k][key_list[3]][0]).adata[key_list[6]]    
 
         roi1 = sarpy.Scan(master_sheet[k][key_list[4]][0]).adata[key_list[7]]
         roi2 = sarpy.Scan(master_sheet[k][key_list[5]][0]).adata[key_list[7]]
+        
+        roi_mask1 = sarpy.fmoosvi.analysis.h_image_to_mask(roi1)
+        roi_mask2 = sarpy.fmoosvi.analysis.h_image_to_mask(roi2)
 
-        roi_resample1 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi1,LL_1)      
-        roi_resample2 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi2,LL_2)
+        roi_resample1 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi_mask1,LL_1)      
+        roi_resample2 = sarpy.ImageProcessing.resample_onto.resample_onto_pdata(roi_mask2,LL_2)
 
-        curr_T1s1 = LL_1.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample1)
-        curr_T1s2 = LL_2.data * sarpy.fmoosvi.analysis.h_image_to_mask(roi_resample2)
+        curr_T1s1 = LL_1.data * roi_resample1 
+        curr_T1s2 = LL_2.data * roi_resample2
               
         bins = numpy.linspace(500,3500,20)
         name1 = 'T1distrib1-' + k
