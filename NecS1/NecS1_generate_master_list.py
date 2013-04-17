@@ -27,8 +27,17 @@ for pat in pat_list:
         continue
     elif pat.get_SUBJECT_id()[0] == 'NecS1Hs04':
         continue
+    elif pat.get_SUBJECT_id()[0] == 'NecS1Hs06':
+        # Continuing because this mouse was poorly positiond galore!
+        # the T1 maps also look like crap, likely due to poor snr. investigate
+        #TODO: Investgate wat happened here
+        continue
+    
     elif pat.get_SUBJECT_id()[0] == 'NecS1Hs07':
         stdy1 = pat.studies[0]
+        stdy2 = pat.studies[2]
+        stdy3 = pat.studies[2] 
+        print('Warning,the NecS3Hs07 does NOT have a third day and is filled with day 2 study!')
     
     elif len(pat.studies) != 3:
         print 'not 2 studies: %s ' % pat.get_SUBJECT_id()
@@ -40,6 +49,7 @@ for pat in pat_list:
     master_sheet[nm[0]]['0h'] = stdy1.shortdirname
     master_sheet[nm[0]]['24h'] = stdy2.shortdirname
     master_sheet[nm[0]]['48h'] = stdy3.shortdirname
+
 
     #LL
     scn = stdy1.find_scan_by_protocol('04_')
@@ -168,8 +178,3 @@ with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS1/NecS1.jso
 with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS1/NecS1.json','r') as infile:
         x = json.load(infile)
        
-for k,v in x.iteritems():
-    try:
-        print k, x[k]['24h-DCE2'][0]
-    except:
-        print k, 'too bad'

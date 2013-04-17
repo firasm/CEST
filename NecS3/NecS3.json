@@ -1,19 +1,10 @@
-{    
-    "NecS3Hs01a": {},
+{
+    "NecS3Hs01a": {}, 
     "NecS3Hs02": {
         "0h-LL": [
-            "NecS3Hs02.iK1/11", 
+            "NecS3Hs02.iJ1/10", 
             "04_ubcLL2"
-        ],         
-        "24h-IR_A": [
-            "NecS3Hs02.iK1/12", 
-            "05_IR-RARE-anatomy"
         ], 
-
-       "24h-IR_B": [
-            "NecS3Hs02.iK1/19", 
-            "05_IR-RARE-anatomy"
-        ],         
         "24h-LL": [
             "NecS3Hs02.iK1/11", 
             "04_ubcLL2"
@@ -27,12 +18,19 @@
             "06_FLASH2D.6sl-DCE"
         ], 
         "24h": "NecS3Hs02.iK1", 
-        "0h": "NecS3Hs02.iJ1",        
+        "24h-IR_A": [
+            "NecS3Hs02.iK1/12", 
+            "05_IR-RARE-anatomy"
+        ], 
+        "24h-IR_B": [
+            "NecS3Hs02.iK1/13", 
+            "05_IR-RARE-anatomy"
+        ], 
         "0h-IR_B": [
-            "NecS3Hs02.iJ1/18", 
-            "05_IR-RARE-anatomy_highres"
-        ],
-
+            "NecS3Hs02.iJ1/17", 
+            "05_IR-RARE-anatomy"
+        ], 
+        "0h": "NecS3Hs02.iJ1", 
         "0h-IR_A": [
             "NecS3Hs02.iJ1/11", 
             "05_IR-RARE-anatomy_highres"
@@ -87,7 +85,7 @@
             "06_FLASH2D.6sl-DCE"
         ], 
         "0h-DCE1": [
-            "NecS3Hs04.iJ1/12", 
+            "NecS3Hs04.iJ1/11", 
             "06_FLASH2D.6sl-DCE"
         ]
     }, 
@@ -261,15 +259,15 @@
             "NecS3Hs10.iL1/11", 
             "06_FLASH2D.6sl-DCE"
         ], 
-        "24h": "NecS3Hs10.iL1",         
+        "24h": "NecS3Hs10.iL1", 
         "24h-IR_A": [
             "NecS3Hs10.iL1/10", 
             "05_IR-RARE-anatomy"
-        ],         
+        ], 
         "24h-IR_B": [
-            "NecS3Hs10.iL1/16", 
+            "NecS3Hs10.iL1/10", 
             "05_IR-RARE-anatomy"
-        ],
+        ], 
         "0h": "NecS3Hs10.iK1", 
         "0h-IR_A": [
             "NecS3Hs10.iK1/7", 

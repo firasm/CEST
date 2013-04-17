@@ -69,6 +69,11 @@ for pat in pat_list:
         master_sheet[nm[0]]['0h-IR_B']= magic_tuple(scn[1])
     elif len(scn) == 1:
         master_sheet[nm[0]]['0h-IR_A']= magic_tuple(scn[0])
+    elif pat.get_SUBJECT_id()[0] == 'NecS3Hs02':
+        master_sheet[nm[0]]['0h-IR_A']= magic_tuple(scn[0])
+        master_sheet[nm[0]]['0h-IR_B']= magic_tuple(scn[1])
+
+        
     else:
         print 'RARE not clear, day1 %s ' % stdy1.shortdirname
         
@@ -78,10 +83,16 @@ for pat in pat_list:
         master_sheet[nm[0]]['24h-IR_B']= magic_tuple(scn[1])
     elif len(scn) == 1:
         master_sheet[nm[0]]['24h-IR_A']= magic_tuple(scn[0])
+    elif pat.get_SUBJECT_id()[0] == 'NecS3Hs10':
+        master_sheet[nm[0]]['24h-IR_A']= magic_tuple(scn[0])
+        master_sheet[nm[0]]['24h-IR_B']= magic_tuple(scn[0]) 
+    elif pat.get_SUBJECT_id()[0] == 'NecS3Hs02':
+        master_sheet[nm[0]]['24h-IR_A']= magic_tuple(scn[0])
+        master_sheet[nm[0]]['24h-IR_B']= magic_tuple(scn[1])        
     else:
         print 'RARE not clear, day2 %s ' % stdy2.shortdirname
     
-with open('/Volumes/Data/Dropboxes/PhD./Dropbox/Studies/NecS3/NecS3.json','wb') as outfile:
+with open('/Volumes/Data/Dropboxes/PhD./Dropbox/Studies/analysis/NecS3/NecS3.json','wb') as outfile:
     json.dump(master_sheet, outfile, indent=4)
 
 #    with open('/Users/fmoosvi/NecS3.json','r') as infile:
@@ -103,5 +114,4 @@ with open('/Volumes/Data/Dropboxes/PhD./Dropbox/Studies/NecS3/NecS3.json','wb') 
 # No AUC60 for NecS3Hs04
 
 # No IR for NecS3Hs10 - manually fixed    
-# No IR for NecS3Hs02 - manually fixed 
 #==============================================================================

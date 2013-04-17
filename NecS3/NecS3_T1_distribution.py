@@ -20,11 +20,25 @@ import json
 with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS3/NecS3.json','r') as infile:
     master_sheet = json.load(infile)
 
-data_list = []
-T1_vals_day1 = []
-T1_vals_day2= []
+data_list = {}
+T1_vals_day1 = {}
+T1_vals_day2= {}
 
-for k,v in master_sheet.iteritems():
+day1_B = []
+day2_B = []
+
+
+a = 2294.623591
+2432.317817
+2773.823654
+2467.396795
+2336.813094
+2276.250102
+2351.946978
+2404.542488
+2224.638317
+3066.115236
+
     
     try:
         data_list = []
@@ -67,16 +81,20 @@ for k,v in master_sheet.iteritems():
         curr_T1s1 = LL_1.data * roi_resample1 
         curr_T1s2 = LL_2.data * roi_resample2
         
-        T1_vals_day1.append( curr_T1s1[numpy.isfinite(curr_T1s1)] )
-        T1_vals_day2.append( curr_T1s2[numpy.isfinite(curr_T1s2)] )
+        T1_vals_day1[k]=list(curr_T1s1[numpy.isfinite(curr_T1s1)])
+        T1_vals_day2[k]=list(curr_T1s2[numpy.isfinite(curr_T1s2)])
+
+        day1_B.append(numpy.mean(curr_T1s1[numpy.isfinite(curr_T1s1)]))
+        day2_B.append(numpy.mean(curr_T1s2[numpy.isfinite(curr_T1s2)]))
+
 
         # Drawing and saving plots
-        pylab.close('all')
-        name = 'T1roi-' + k
-        bins = numpy.linspace(200,3500,50)
-        sarpy.fmoosvi.wrappers.roi_distribution(LL_1, roi_resample1, bins)
-        sarpy.fmoosvi.wrappers.roi_distribution(LL_2, roi_resample2, bins, save_histogram = True, save_name = name)
-        pylab.title(name)
+#        pylab.close('all')
+#        name = 'T1roi-' + k
+#        bins = numpy.linspace(200,3500,50)
+#        sarpy.fmoosvi.wrappers.roi_distribution(LL_1, roi_resample1, bins)
+#        sarpy.fmoosvi.wrappers.roi_distribution(LL_2, roi_resample2, bins, save_histogram = True, save_name = name)
+#        pylab.title(name)
  
         # Print the number of pixels used in each study
         print k
@@ -87,25 +105,29 @@ for k,v in master_sheet.iteritems():
         print('Key error, please ignore {0}'.format(k))
         
 #Now squash the lists together, and turn into an array use an incomprehensible list comprehension, as named by someone on SE
-T1_vals_day1 = [item for sublist in T1_vals_day1 for item in sublist]
-T1_vals_day1 = numpy.array(T1_vals_day1)
+#T1_vals_day1 = [item for sublist in T1_vals_day1 for item in sublist]
+#T1_vals_day1 = numpy.array(T1_vals_day1)
+#
+#T1_vals_day2 = [item for sublist in T1_vals_day2 for item in sublist]
+#T1_vals_day2 = numpy.array(T1_vals_day2)
+#
+#pylab.figure()
+#bins = numpy.linspace(200,3500,50)
+#pylab.hist(T1_vals_day1, bins, alpha=0.6)
+#pylab.hist(T1_vals_day2, bins, alpha=0.6)
+#pylab.title('RF1106 animals from NecS3')
+#
+### Export the data to a JSON file:
+#
+with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS3/NecS3_T1_vals_day1.json', 'w') as f:
+    json.dump(T1_vals_day1, f)
+with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS3/NecS3_T1_vals_day2.json', 'w') as f:
+    json.dump(T1_vals_day2, f)
 
-T1_vals_day2 = [item for sublist in T1_vals_day2 for item in sublist]
-T1_vals_day2 = numpy.array(T1_vals_day2)
-
-pylab.figure()
-bins = numpy.linspace(200,3500,50)
-pylab.hist(T1_vals_day1, bins, alpha=0.6)
-pylab.hist(T1_vals_day2, bins, alpha=0.6)
-
-bins = numpy.linspace(200,3500,50)
-        
-pylab.figure()        
-pylab.hist(T1_vals_day1, bins, alpha=0.6)
-pylab.hist(T1_vals_day2, bins, alpha=0.6)
-pylab.title('RF1106 animals from NecS3')
-
-
+with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS3/day1_B.json', 'w') as f:
+    json.dump(day1_B, f)
+with open('/Volumes/Data/Dropboxes/PhD./Dropbox/studies/analysis/NecS3/day2_B.json', 'w') as f:
+    json.dump(day2_B, f)
 
 
 
