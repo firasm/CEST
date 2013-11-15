@@ -43,3 +43,8 @@ Thumbs.db
 *.png
 *.nii
 *.nii.gz
+
+# iPython notebook related stuff
+######################
+*.ipynb-checkpoint.ipynb
+*-checkpoint.ipynb
