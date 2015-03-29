@@ -10,7 +10,7 @@ import sarpy.fmoosvi.analysis
 import scipy
 
 
-####### Functions #######
+####### Fitting Functions #######
 
 def h_zspectrum_N(params,freqs):
     
@@ -46,8 +46,6 @@ def fit_water_peak(data,offset_freqs):
     # use that as our baseline parameter
 
     # Also, normalize the data so the fit is easier
-
-    data = data / numpy.max(data)
 
     params_passed = [numpy.max(data),-1.,0.1,0.6]
 
@@ -108,20 +106,79 @@ def shift_water_peak(scn_to_analyse=None,
     bbox_mask = numpy.tile(bbox_mask.reshape(x_size,y_size,1),offsets) 
 
     # Fit the water peak pixel by pixel
-    B0_map = numpy.nan + numpy.empty([x_size,y_size])
+    water_shift_map = numpy.nan + numpy.empty([x_size,y_size])
 
     dat = scn.pdata[0].data
     for x in xrange(bbox[0],bbox[1]):
         for y in xrange(bbox[2],bbox[3]):
 
-            B0_map[x,y] = fit_water_peak(dat[x,y],freq_list)
+            fit_data = dat[x,y] / numpy.max(dat[x,y])
+
+            water_shift_map[x,y] = fit_water_peak(fit_data,freq_list)
+
+    return water_shift_map
+
+####### Displaying and Plotting Functions #######    
+
+def cest_spectrum(scn_to_analyse,
+                  xval,
+                  yval,
+                  shift_water_peak = True,
+                  normalize_to_ppm = 200,
+                  ppm_limit = 50,
+                  exclude_ppm = 66.6,
+                  pdata_num = 0):
+    
+    """
+    Does the grunt work of processing freqs to give
+    a sequential list of frequencies (rather than alternating).
+
+    :param str scn_to_analyse: scan.shortdirname
+    :param bool shift_water_peak: Fits the water peak and shifts the freqs so that 
+            water is at 0 ppm (you can now average after this)
+    :param float normalize_to_ppm: freq to normalize to
+    :param float ppm_limit: Only return frequencies within +ppm_limit and -ppm_limit
+    :param float exclude_ppm: Exclude the dummy frequencies
+    :param int pdata_num: reconstruction number, according to python numbering.
+            default reconstruction is pdata_num = 0.
+
+    :return: new (frequencies in sequential order)
+             tmp (data at frequencies in 'new')
+    """ 
+    scn = sarpy.Scan(scn_to_analyse)
+
+    # Get the Frequencies and make them sequential 
+    # so that alternating points don't plot badly
+
+    # First get the freq list
+    freq_list = scn.method.CEST_FreqListPPM
+
+    # Find the frequency to normalize to, throw error if not found
+    normalizeTo = freq_list.index(normalize_to_ppm)
+
+    # Get only the frequencies within the ppm_limit
+    new = [f for f in freq_list if numpy.abs(f)<ppm_limit]
+
+    # Exclude the dummy frequencies at the beginning (66.6 ppm)
+    new = sorted([n for n in new if n!= exclude_ppm])
+
+    # Get the index of the good frequencies relative to the original list 
+    ind = [freq_list.index(c) for c in new]  
+
+    # Get the data and normalize it to index of normalize_to_ppm
+    tmp = scn.pdata[pdata_num].data[xval,yval,ind] / scn.pdata[0].data[xval,yval,normalizeTo] 
+
+    if shift_water_peak:
+        shift = fit_water_peak(tmp,new)
+        new_shifted = [n - shift if n>=0 else n+shift for n in new]
+
+        return new_shifted, tmp
+
+    else:
+        # Return the x-axis (new) and the y-axis (tmp)
+        return new,tmp
 
 
-    return B0_map
-
-
-
-        
 
 
 
