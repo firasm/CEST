@@ -166,17 +166,24 @@ def cest_spectrum(scn_to_analyse,
     ind = [freq_list.index(c) for c in new]  
 
     # Get the data and normalize it to index of normalize_to_ppm
-    tmp = scn.pdata[pdata_num].data[xval,yval,ind] / scn.pdata[0].data[xval,yval,normalizeTo] 
+    tmp = scn.pdata[pdata_num].data[xval,yval,:] / scn.pdata[0].data[xval,yval,normalizeTo] 
+
 
     if shift_water_peak:
-        shift = fit_water_peak(tmp,new)
-        new_shifted = [n - shift if n>=0 else n+shift for n in new]
 
-        return new_shifted, tmp
+        # If there is a strong CEST signal, it actually results in a bad fit. So 
+        # I'm going to find the lowest frequency 
+        lowest_freq = numpy.min(numpy.abs(freq_list))
+        fitted_freqs = [f for f in freq_list if numpy.abs(f)<lowest_freq+1]
+        lowest_freq_ind = sorted([freq_list.index(c) for c in fitted_freqs])
+        shift = fit_water_peak(tmp[lowest_freq_ind],fitted_freqs)
+        new_shifted = [n - shift for n in new]
+
+        return new_shifted, tmp[ind]
 
     else:
         # Return the x-axis (new) and the y-axis (tmp)
-        return new,tmp
+        return new,tmp[ind]
 
 
 
