@@ -1,6 +1,11 @@
 ##Collection of code to simulate CEST sequences
 
-import numpy as *
+import numpy
+
+def testThis():
+
+    return 2*100
+
 def xrot(phi):
     return numpy.array([[1,0,0,0,0,0,0],
                         [0,1,0,0,0,0,0],
