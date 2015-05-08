@@ -134,8 +134,7 @@ def cest_spectrum(scn_to_analyse,
     a sequential list of frequencies (rather than alternating).
 
     :param str scn_to_analyse: scan.shortdirname
-    :param bool shift_water_peak: Fits the water peak and shifts the freqs so that 
-            water is at 0 ppm (you can now average after this)
+    :param bool shift_water_peak: Interpolates intensities so the water peak is at 0 ppm (you can now average after this)
     :param float normalize_to_ppm: freq to normalize to
     :param float ppm_limit: Only return frequencies within +ppm_limit and -ppm_limit
     :param float exclude_ppm: Exclude the dummy frequencies
@@ -168,7 +167,6 @@ def cest_spectrum(scn_to_analyse,
     # Get the data and normalize it to index of normalize_to_ppm
     tmp = scn.pdata[pdata_num].data[xval,yval,:] / scn.pdata[0].data[xval,yval,normalizeTo] 
 
-
     if shift_water_peak:
 
         # If there is a strong CEST signal, it actually results in a bad fit. So 
@@ -177,9 +175,14 @@ def cest_spectrum(scn_to_analyse,
         fitted_freqs = [f for f in freq_list if numpy.abs(f)<lowest_freq+1]
         lowest_freq_ind = sorted([freq_list.index(c) for c in fitted_freqs])
         shift = fit_water_peak(tmp[lowest_freq_ind],fitted_freqs)
-        new_shifted = [n - shift for n in new]
 
-        return new_shifted, tmp[ind]
+        # Interpolation happens here
+
+        s_shifted_back = scipy.interp(new+shift, new, tmp[ind])
+
+        #new_shifted = [n - shift for n in new]
+
+        return new, s_shifted_back
 
     else:
         # Return the x-axis (new) and the y-axis (tmp)
