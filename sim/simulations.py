@@ -13,7 +13,7 @@ def xrot(phi):
                         [0,0,0,cos(phi),0,sin(phi),0],
                         [0,0,-sin(phi),0,cos(phi),0,0],
                         [0,0,0,-sin(phi),0,cos(phi),0],
-                        [0,0,0,0,0,0,0],])
+                        [0,0,0,0,0,0,1],])
 
 def yrot(phi):
     return numpy.array([[cos(phi),0,0,0,-sin(phi),0,0],
@@ -22,7 +22,7 @@ def yrot(phi):
                         [0,0,0,1,0,0,0],
                         [sin(phi),0,0,0,cos(phi),0,0],
                         [0,sin(phi),0,0,0,cos(phi),0],
-                        [0,0,0,0,0,0,0]])
+                        [0,0,0,0,0,0,1]])
 
 def zrot(phi):
     return numpy.array([[numpy.cos(phi), 0, numpy.sin(phi), 0, 0, 0, 0],
@@ -31,9 +31,9 @@ def zrot(phi):
                         [0, -numpy.sin(phi), 0, numpy.cos(phi), 1, 0, 0],
                         [0, 0, 0, 0, 1, 0, 0],
                         [0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0],])
+                        [0, 0, 0, 0, 0, 0, 1],])
 
-def freeprecessTwoPool(dt, T1a=numpy.inf, T2a=numpy.inf, T1b = numpy.inf, T2b = numpy.inf, M0a=1000, M0b = 1.0, domega=0):
+def freeprecessTwoPool(dt, relaxationTimes = [T1a, T2a, T1b, T2b], poolMagnitudes = [1000.0, 1.0], domega=domega):
     ''' return the A matrix and B vector for the dM/dt magnetization evolution '''
     phi = domega*dt	 # Resonant precession, radians.
     E1a = numpy.exp(-dt/T1a)
