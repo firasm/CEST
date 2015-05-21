@@ -33,7 +33,29 @@ def zrot(phi):
                         [0, 0, 0, 0, 0, 1, 0],
                         [0, 0, 0, 0, 0, 0, 1],])
 
+
+def ABtwoPool(dt, T1a=numpy.inf, T2a=numpy.inf, T1b = numpy.inf, T2b = numpy.inf, M0a=1000, M0b = 1.0, domega=0):
+    ## return the A matrix and B vector for the dM/dt magnetization evolution 
+    
+    phi = domega*dt	 # Resonant precession, radians.
+    E1a = numpy.exp(-dt/T1a)
+    E1b = numpy.exp(-dt/T1b)
+    E2a = numpy.exp(-dt/T2a)
+    E2b = numpy.exp(-dt/T2b)
+    
+    B = numpy.array([0, 0, 0, 0, M0a*(1. - E1a), M0b*(1. - E1b), 0])
+
+    A = numpy.array([[E2a, 0, 0, 0, 0, 0, 0],
+                     [0, E2b, 0, 0, 0, 0, 0],
+                     [0, 0, E2a, 0, 0, 0, 0],
+                     [0, 0, 0, E2b, 0, 0, 0],
+                     [0, 0, 0, 0, E1a, 0, 0],
+                     [0, 0, 0, 0, 0, E1b, 0],
+                     [0, 0, 0, 0, 0, 0, 1 ]])
+    return numpy.dot(A, zrot(phi)),B
+
 def freePrecessTwoPool(Mresult, t, A_fp, B_fp):
+	##Evolves the magnetization as governed by relaxation effects
     if t > 0:
         Mresult_fp = numpy.empty((t+1,7))
         Mresult_fp[0,:] = Mresult[-1]
@@ -43,10 +65,9 @@ def freePrecessTwoPool(Mresult, t, A_fp, B_fp):
     else:
         return Mresult
 
-## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
-
 def cestSequence(Mstart, physicsVariables, sequenceParams):
-    
+    ## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
+
     [satDur, ti, tacq, tpresat, accFactor, tinterfreq, hardTheta, m, dt, delta] = sequenceParams
     [B0, omega1, domegaSpecies,  M0a, M0b, T1a, T2a, T1b, T2b, ka, kb] = physicsVariables
     
@@ -106,3 +127,15 @@ def cestSequence(Mstart, physicsVariables, sequenceParams):
     #################     END OF IMAGING SEQUENCE     ####################################
     
     return Mresult, signal
+
+def Zspectrum(freqs, Mstart):
+	##generates a spectrum of frequencies
+    signals = []
+    for freq in freqs:
+        sequenceParams[-1] = freq
+        Mresult, signal = cestSequence(Mstart, physicsVariables, sequenceParams)
+        Mstart = Mresult[-1,:]
+        signals.append(signal)
+    return signals
+
+
