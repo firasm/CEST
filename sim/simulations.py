@@ -33,24 +33,15 @@ def zrot(phi):
                         [0, 0, 0, 0, 0, 1, 0],
                         [0, 0, 0, 0, 0, 0, 1],])
 
-def freeprecessTwoPool(dt, relaxationTimes = [T1a, T2a, T1b, T2b], poolMagnitudes = [1000.0, 1.0], domega=domega):
-    ''' return the A matrix and B vector for the dM/dt magnetization evolution '''
-    phi = domega*dt	 # Resonant precession, radians.
-    E1a = numpy.exp(-dt/T1a)
-    E1b = numpy.exp(-dt/T1b)
-    E2a = numpy.exp(-dt/T2a)
-    E2b = numpy.exp(-dt/T2b)
-    
-    B = numpy.array([0, 0, 0, 0, M0a*(1. - E1a), M0b*(1. - E1b), 0])
-
-    A = numpy.array([[E2a, 0, 0, 0, 0, 0, 0],
-                     [0, E2b, 0, 0, 0, 0, 0],
-                     [0, 0, E2a, 0, 0, 0, 0],
-                     [0, 0, 0, E2b, 0, 0, 0],
-                     [0, 0, 0, 0, E1a, 0, 0],
-                     [0, 0, 0, 0, 0, E1b, 0],
-                     [0, 0, 0, 0, 0, 0, 0 ]])
-    return numpy.dot(A, zrot(phi)),B
+def freePrecessTwoPool(Mresult, t, A_fp, B_fp):
+    if t > 0:
+        Mresult_fp = numpy.empty((t+1,7))
+        Mresult_fp[0,:] = Mresult[-1]
+        for i in range(1, t+1):
+            Mresult_fp[i,:] = numpy.dot(A_fp, Mresult_fp[i-1,:]) + B_fp
+        return numpy.concatenate((Mresult, Mresult_fp[1:-1]), 0)
+    else:
+        return Mresult
 
 ## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
 
