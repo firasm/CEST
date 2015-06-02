@@ -1,10 +1,50 @@
 ##Collection of code to simulate CEST sequences
 
 import numpy
+from scipy.signal import argrelextrema
+import scipy.optimize
 
-def testThis():
+def setCESTdefaults():
+    satDur = 0.3
+    ti = 10  #time between sat pulse and acquisition
+    tacq =50
+    tpresat = 50
+    accFactor = 1
+    tinterfreq = 5000
+    hardTheta = np.pi/9
+    PElines =1
+    m = PElines/accFactor
+    dt = 1e-7
+    delta = -1000.0 #freqency offset of the saturation pulse
+    sequenceParams = [satDur, ti, tacq, tpresat, accFactor, tinterfreq, hardTheta, m, dt, delta]
+    
+    gamma = 2*pi*42.6e6 # rad/(s T)
+    B0 = 7.0 #Tesla
+    omega0 = gamma * B0
+    B1 = 1.0e-6 # Tesla
+    omega1 = gamma * B1
+    omegaWater = gamma * B0
+    #omega1 = omegaWater + delta #frequency of sat pulse
+    domegaSpecies = 4000 #rad/s
+    omegaSpecies = omegaWater + domegaSpecies #chemical resonance frequency
 
-    return 2*100
+
+    #Pool a is water, b is the species
+    M0a = 1000.0
+    M0b = M0a*1e-3*10
+    T1a = 2.0 # seconds
+    T2a = 0.6
+    T1b = 1.0
+    T2b = 0.2
+    kb = 0.0
+    ka = M0b/M0a*kb #Transfer rate of pool a to pool b, s^-1. We want a-->b = b-->a
+    physicsVariables = [B0, omega1, domegaSpecies,  M0a, M0b, T1a, T2a, T1b, T2b, ka, kb]
+    Mstart = array([0,0,0,0,M0a,M0b,1.])
+    
+    print 'sequenceParams = [satDur, ti, tacq, tpresat, accFactor, tinterfreq, hardTheta, m, dt, delta]'
+    print 'physicsVariables = [B0, omega1, domegaSpecies,  M0a, M0b, T1a, T2a, T1b, T2b, ka, kb]'
+    return sequenceParams, physicsVariables, Mstart
+
 
 def xrot(phi):
     return numpy.array([[1,0,0,0,0,0,0],
@@ -35,7 +75,7 @@ def zrot(phi):
 
 
 def ABtwoPool(dt, T1a=numpy.inf, T2a=numpy.inf, T1b = numpy.inf, T2b = numpy.inf, M0a=1000, M0b = 1.0, domega=0):
-    ## return the A matrix and B vector for the dM/dt magnetization evolution 
+    ''' return the A matrix and B vector for the dM/dt magnetization evolution '''
     
     phi = domega*dt	 # Resonant precession, radians.
     E1a = numpy.exp(-dt/T1a)
@@ -55,19 +95,19 @@ def ABtwoPool(dt, T1a=numpy.inf, T2a=numpy.inf, T1b = numpy.inf, T2b = numpy.inf
     return numpy.dot(A, zrot(phi)),B
 
 def freePrecessTwoPool(Mresult, t, A_fp, B_fp):
-	##Evolves the magnetization as governed by relaxation effects
     if t > 0:
         Mresult_fp = numpy.empty((t+1,7))
-        Mresult_fp[0,:] = Mresult[-1]
+        Mresult_fp[0,:] = np.array(Mresult)[-1,:]
         for i in range(1, t+1):
             Mresult_fp[i,:] = numpy.dot(A_fp, Mresult_fp[i-1,:]) + B_fp
         return numpy.concatenate((Mresult, Mresult_fp[1:-1]), 0)
     else:
         return Mresult
 
-def cestSequence(Mstart, physicsVariables, sequenceParams):
-    ## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
+## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
 
+def cestSequence(Mstart, physicsVariables, sequenceParams):
+    
     [satDur, ti, tacq, tpresat, accFactor, tinterfreq, hardTheta, m, dt, delta] = sequenceParams
     [B0, omega1, domegaSpecies,  M0a, M0b, T1a, T2a, T1b, T2b, ka, kb] = physicsVariables
     
@@ -86,33 +126,39 @@ def cestSequence(Mstart, physicsVariables, sequenceParams):
         
         return numpy.dot(A,M_vec)
     
+    Mresult = np.empty((int(satDur/dt)+1,7))
+    Mresult[0,:], tresult = Mstart, [0]
     
-    tresult = numpy.empty(satDur)
-    Mresult = numpy.empty((satDur,7))
-    Mresult[0,:] = Mstart
-    
-    r = scipy.integrate.ode(dMdtTwoPool)
-    r = r.set_integrator('dopri5')
-    r = r.set_initial_value(Mstart, t=0)
-    
-    idx = 1
-    while r.successful() and r.t < satDur and idx<satDur:
-        Mresult[idx,:] = r.integrate(r.t+dt)
-        tresult[idx]=r.t
-        idx += 1
+    t = 0.0
+    ind = 1
+    while t < satDur:
+        dM = dt * dMdtTwoPool(t, Mresult[ind-1,:], M0a = M0a, M0b = M0b, T1a = T1a, T2a = T2a, T1b = T1b, T2b = T2b,
+                ka = ka, kb = kb, domegaa=-delta, domegab=-delta-domegaSpecies, omega1=omega1)
+        Mresult[ind,:] = Mresult[ind-1,:] + dM
+        t += dt
+        ind += 1
+        tresult.append(t)
         
-    #signal = numpy.sqrt(Mresult[-1,0]**2 + Mresult[-1,2]**2)
-    #signal = numpy.sqrt(Mresult[-1,4]**2)
-
-    ##################    END OF SATURATION PULSE  #####################################
-   
-    ##################   IMAGING SEQUENCE     ##########################################
-    A_fp, B_fp = ABtwoPool(dt, T1a=T1a, T2a=T2a, T1b = T1b, T2b = T2b, M0a=M0a, M0b = M0b, domega=0)
     
-    Mresult = freePrecessTwoPool(Mresult, ti, A_fp, B_fp)## between sat pulse and aquisition pulse
+    secondLastPeak = argrelextrema(Mresult[:,0]**2 + Mresult[:,2]**2, np.greater)[0][-2]
+    lastPeak = argrelextrema(Mresult[:,0]**2 + Mresult[:,2]**2, np.greater)[0][-1]
 
+    for i in range(6):
+        Mresult[-1,i] = np.average(Mresult[:,i][secondLastPeak:lastPeak])
+    if delta > 0.:
+        Mresult[-1,0] = -Mresult[-1,0]
+        Mresult[-1,2] = -Mresult[-1,2]
+    
+    ##################    END OF SATURATION PULSE  #####################################
+
+
+    ##################   IMAGING SEQUENCE     ##########################################
+    dt = 0.001
+    A_fp, B_fp = ABtwoPool(dt, T1a=T1a, T2a=T2a, T1b = T1b, T2b = T2b, M0a=M0a, M0b = M0b, domega=0)
+    Mresult = freePrecessTwoPool(Mresult, ti, A_fp, B_fp)## between sat pulse and aquisition pulse
     for mFactor in range(m):  ##  Acquisition, including hard pulse 
         for accFactor in range(1, accFactor+1):
+            Mresult[-1][0:4] = [0,0,0,0] ## Spoiler Gradient
             Mresult = numpy.concatenate((Mresult, [np.dot(yrot(hardTheta), Mresult[-1])]))
             signal = numpy.sqrt(Mresult[-1,0]**2 + Mresult[-1,2]**2)
             Mresult = freePrecessTwoPool(Mresult, tacq, A_fp, B_fp)
@@ -122,20 +168,17 @@ def cestSequence(Mstart, physicsVariables, sequenceParams):
     Mresult = freePrecessTwoPool(Mresult, tpresat, A_fp, B_fp)     ## tPresat - Does this exist? 
     
     Mresult = freePrecessTwoPool(Mresult, tinterfreq, A_fp, B_fp)     ## after acquisition, before the next frequency offset
-    
-    
     #################     END OF IMAGING SEQUENCE     ####################################
     
     return Mresult, signal
 
 def Zspectrum(freqs, Mstart):
-	##generates a spectrum of frequencies
     signals = []
     for freq in freqs:
+        print(freq)
         sequenceParams[-1] = freq
         Mresult, signal = cestSequence(Mstart, physicsVariables, sequenceParams)
         Mstart = Mresult[-1,:]
         signals.append(signal)
     return signals
-
 
