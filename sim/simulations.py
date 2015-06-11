@@ -3,25 +3,25 @@
 import numpy
 from scipy.signal import argrelextrema
 import scipy.optimize
+from scipy.integrate import ode
 
-def setCESTdefaults():
-    satDur = 0.3
+def setCESTdefaults(B1):
+    satDur = 4000
     ti = 10  #time between sat pulse and acquisition
-    tacq =50
-    tpresat = 50
-    accFactor = 1
-    tinterfreq = 5000
+    tacq =10
+    tpresat = 0
+    accFactor = 72
+    tinterfreq = 7000
     hardTheta = np.pi/9
-    PElines =1
+    PElines =72
     m = PElines/accFactor
-    dt = 1e-7
+    dt = 1e-3
     delta = -1000.0 #freqency offset of the saturation pulse
     sequenceParams = [satDur, ti, tacq, tpresat, accFactor, tinterfreq, hardTheta, m, dt, delta]
     
     gamma = 2*pi*42.6e6 # rad/(s T)
     B0 = 7.0 #Tesla
     omega0 = gamma * B0
-    B1 = 1.0e-6 # Tesla
     omega1 = gamma * B1
     omegaWater = gamma * B0
     #omega1 = omegaWater + delta #frequency of sat pulse
@@ -32,11 +32,11 @@ def setCESTdefaults():
     #Pool a is water, b is the species
     M0a = 1000.0
     M0b = M0a*1e-3*10
-    T1a = 2.0 # seconds
+    T1a = 2.5 # seconds
     T2a = 0.6
     T1b = 1.0
     T2b = 0.2
-    kb = 0.0
+    kb = 40.0
     ka = M0b/M0a*kb #Transfer rate of pool a to pool b, s^-1. We want a-->b = b-->a
     physicsVariables = [B0, omega1, domegaSpecies,  M0a, M0b, T1a, T2a, T1b, T2b, ka, kb]
     Mstart = array([0,0,0,0,M0a,M0b,1.])
@@ -68,7 +68,7 @@ def zrot(phi):
     return numpy.array([[numpy.cos(phi), 0, numpy.sin(phi), 0, 0, 0, 0],
                         [0, numpy.cos(phi), 0, numpy.sin(phi), 0, 0, 0],
                         [-numpy.sin(phi), 0, numpy.cos(phi), 0, 0, 0, 0],
-                        [0, -numpy.sin(phi), 0, numpy.cos(phi), 1, 0, 0],
+                        [0, -numpy.sin(phi), 0, numpy.cos(phi), 0, 0, 0],
                         [0, 0, 0, 0, 1, 0, 0],
                         [0, 0, 0, 0, 0, 1, 0],
                         [0, 0, 0, 0, 0, 0, 1],])
@@ -104,13 +104,12 @@ def freePrecessTwoPool(Mresult, t, A_fp, B_fp):
     else:
         return Mresult
 
-## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
+
 
 def cestSequence(Mstart, physicsVariables, sequenceParams):
-    
+    ## Takes a starting magnetization, returns a history of the magnetization over the course of a CEST FLASH sequence
     [satDur, ti, tacq, tpresat, accFactor, tinterfreq, hardTheta, m, dt, delta] = sequenceParams
     [B0, omega1, domegaSpecies,  M0a, M0b, T1a, T2a, T1b, T2b, ka, kb] = physicsVariables
-    
     
     ################    SATURATION PULSE    ##################################    
     def dMdtTwoPool(t, M_vec, M0a = M0a, M0b = M0b, T1a = T1a, T2a = T2a, T1b = T1b, T2b = T2b,
@@ -126,43 +125,38 @@ def cestSequence(Mstart, physicsVariables, sequenceParams):
         
         return numpy.dot(A,M_vec)
     
-    Mresult = np.empty((int(satDur/dt)+1,7))
+    Mresult = np.empty((int(satDur),7))
     Mresult[0,:], tresult = Mstart, [0]
-    
-    t = 0.0
-    ind = 1
-    while t < satDur:
-        dM = dt * dMdtTwoPool(t, Mresult[ind-1,:], M0a = M0a, M0b = M0b, T1a = T1a, T2a = T2a, T1b = T1b, T2b = T2b,
-                ka = ka, kb = kb, domegaa=-delta, domegab=-delta-domegaSpecies, omega1=omega1)
-        Mresult[ind,:] = Mresult[ind-1,:] + dM
-        t += dt
-        ind += 1
-        tresult.append(t)
-        
-    
-    secondLastPeak = argrelextrema(Mresult[:,0]**2 + Mresult[:,2]**2, np.greater)[0][-2]
-    lastPeak = argrelextrema(Mresult[:,0]**2 + Mresult[:,2]**2, np.greater)[0][-1]
+ 
+    r = scipy.integrate.ode(dMdtTwoPool)
+    r = r.set_integrator('dopri5')
+    r = r.set_initial_value(Mstart, t=0)
 
-    for i in range(6):
-        Mresult[-1,i] = np.average(Mresult[:,i][secondLastPeak:lastPeak])
+    t = 0.0
+    idx = 1
+    while r.successful() and idx < satDur:
+        Mresult[idx,:] = r.integrate(r.t + dt)
+        t+= dt
+        idx += 1
+        
     if delta > 0.:
         Mresult[-1,0] = -Mresult[-1,0]
         Mresult[-1,2] = -Mresult[-1,2]
     
     ##################    END OF SATURATION PULSE  #####################################
 
-
+    
     ##################   IMAGING SEQUENCE     ##########################################
+    signals = []
     dt = 0.001
     A_fp, B_fp = ABtwoPool(dt, T1a=T1a, T2a=T2a, T1b = T1b, T2b = T2b, M0a=M0a, M0b = M0b, domega=0)
     Mresult = freePrecessTwoPool(Mresult, ti, A_fp, B_fp)## between sat pulse and aquisition pulse
-    for mFactor in range(m):  ##  Acquisition, including hard pulse 
-        for accFactor in range(1, accFactor+1):
-            Mresult[-1][0:4] = [0,0,0,0] ## Spoiler Gradient
-            Mresult = numpy.concatenate((Mresult, [np.dot(yrot(hardTheta), Mresult[-1])]))
-            signal = numpy.sqrt(Mresult[-1,0]**2 + Mresult[-1,2]**2)
-            Mresult = freePrecessTwoPool(Mresult, tacq, A_fp, B_fp)
-            Mresult[-1][0:4] = [0,0,0,0] ## Spoiler Gradient
+    #for mFactor in range(m):  ##  Acquisition, including hard flip
+    for i in range(accFactor):
+        Mresult = numpy.concatenate((Mresult, [np.dot(yrot(hardTheta), Mresult[-1])]))
+        signals.append(numpy.sqrt(Mresult[-1,0]**2 + Mresult[-1,2]**2))
+        Mresult = freePrecessTwoPool(Mresult, tacq, A_fp, B_fp)
+        Mresult[-1][0:4] = [0,0,0,0] ## Spoiler Gradient
     
     
     Mresult = freePrecessTwoPool(Mresult, tpresat, A_fp, B_fp)     ## tPresat - Does this exist? 
@@ -170,15 +164,16 @@ def cestSequence(Mstart, physicsVariables, sequenceParams):
     Mresult = freePrecessTwoPool(Mresult, tinterfreq, A_fp, B_fp)     ## after acquisition, before the next frequency offset
     #################     END OF IMAGING SEQUENCE     ####################################
     
-    return Mresult, signal
+    return Mresult, signals
 
 def Zspectrum(freqs, Mstart):
     signals = []
+    Mresults = []
     for freq in freqs:
         print(freq)
         sequenceParams[-1] = freq
         Mresult, signal = cestSequence(Mstart, physicsVariables, sequenceParams)
         Mstart = Mresult[-1,:]
+        Mresults.append(Mresult)
         signals.append(signal)
-    return signals
-
+    return Mresult, signals
