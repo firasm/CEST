@@ -86,14 +86,10 @@ def shift_water_peak(scn_to_analyse=None,
     freq_list = scn.method.CEST_FreqListPPM
     offsets = len(freq_list)
 
-
     #### Deal with bounding boxes
 
     if bbox is None:        
         bbox = numpy.array([0,x_size-1,0,y_size-1])    
-
-    else:
-        bbox = sarpy.fmoosvi.getters.convert_bbox(scn_to_analyse,bbox) 
 
     # Shape the bbox properly to account for offsets
     if bbox.shape == (4,):            
@@ -124,8 +120,10 @@ def cest_spectrum(scn_to_analyse,
                   xval,
                   yval,
                   shift_water_peak = True,
+                  normalize=True,
                   normalize_to_ppm = 200,
-                  ppm_limit = 50,
+                  ppm_limit_min = -50,
+                  ppm_limit_max = 50,
                   exclude_ppm = 66.6,
                   pdata_num = 0):
     
@@ -152,11 +150,16 @@ def cest_spectrum(scn_to_analyse,
     # First get the freq list
     freq_list = scn.method.CEST_FreqListPPM
 
+    if normalize:
     # Find the frequency to normalize to, throw error if not found
-    normalizeTo = freq_list.index(normalize_to_ppm)
+        possibleNormalizations = [i for i, x in enumerate(freq_list) if x == normalize_to_ppm]
+
+        # By default, select the LAST instance of the freq to avoid approach to steady state issues
+        normalizeTo = possibleNormalizations[-1]
 
     # Get only the frequencies within the ppm_limit
-    new = [f for f in freq_list if numpy.abs(f)<ppm_limit]
+    new = [f for f in freq_list if f > ppm_limit_min]
+    new = [f for f in new if f < ppm_limit_max]
 
     # Exclude the dummy frequencies at the beginning (66.6 ppm)
     new = sorted([n for n in new if n!= exclude_ppm])
@@ -164,8 +167,13 @@ def cest_spectrum(scn_to_analyse,
     # Get the index of the good frequencies relative to the original list 
     ind = [freq_list.index(c) for c in new]  
 
-    # Get the data and normalize it to index of normalize_to_ppm
-    tmp = scn.pdata[pdata_num].data[xval,yval,:] / scn.pdata[0].data[xval,yval,normalizeTo] 
+    if normalize:
+        # Get the data and normalize it to index of normalize_to_ppm
+        tmp = scn.pdata[pdata_num].data[xval,yval,:] / scn.pdata[0].data[xval,yval,normalizeTo] 
+
+    else:
+
+        tmp = scn.pdata[pdata_num].data[xval,yval,:]
 
     if shift_water_peak:
 
@@ -188,7 +196,51 @@ def cest_spectrum(scn_to_analyse,
         # Return the x-axis (new) and the y-axis (tmp)
         return new,tmp[ind]
 
+def plotBaselineDiffs(xrawdata, 
+                      yrawdata,
+                      polynomialDegree=5,
+                      removePeaksDict = None):
+    
+    # Define a function to evaluate the fit given an x-array and coefficients 
+    def evaluate_fit(x, coeffs):
+        yy = 0
+        for i in xrange(len(coeffs)):
+            yy += coeffs[i]*x**(len(coeffs)-i - 1)
+        return yy    
 
+    # Initialize xd (xdata) and xindex (xi), force to array
+    xrawdata = numpy.array(xrawdata)
+    xd = xrawdata
+    xi = numpy.ones(shape=[len(xd)])
+    
+    # If multiple peakes need to be removed
+    if removePeaksDict:
+    
+        for k,v in removePeaksDict.iteritems():
+            xi = xi * numpy.where(numpy.all([xd >= v[0],xd <= v[1]],
+                                            axis=0),numpy.nan,1)
+
+    # Get the corresponding values of y,x after it has been cleaned, force to array
+    yd = numpy.array(yrawdata)
+    xd = numpy.array(xrawdata)
+    
+    # Fit a polynomial of degree 5 to xd,yd
+
+    try:
+        coeffs = numpy.polyfit(xd[numpy.isfinite(xd*xi)],
+                            yd[numpy.isfinite(yd*xi)],polynomialDegree)
+
+    except TypeError:
+        coeffs = numpy.ones(shape=[polynomialDegree])*0
+
+    # Compute the difference between the fit and the original data
+    diffs = evaluate_fit(xrawdata, coeffs) - yd
+
+    functionEval = evaluate_fit(xrawdata, coeffs)
+    
+    # return the x and y coordinates, and the function eval
+    
+    return(list(xd), list(yd), list(diffs), list(functionEval))
 
 
 
