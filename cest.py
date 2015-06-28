@@ -90,16 +90,8 @@ def shift_water_peak(scn_to_analyse=None,
 
     if bbox is None:        
         bbox = numpy.array([0,x_size-1,0,y_size-1])    
-
-    # Shape the bbox properly to account for offsets
-    if bbox.shape == (4,):            
-    
-        bbox_mask = numpy.empty([x_size,y_size])
-        bbox_mask[:] = numpy.nan        
-        bbox_mask[bbox[0]:bbox[1],bbox[2]:bbox[3]] = 1
-    
-    # Tile for Offsets
-    bbox_mask = numpy.tile(bbox_mask.reshape(x_size,y_size,1),offsets) 
+    else:
+        bbox = scn.adata['bbox'].data
 
     # Fit the water peak pixel by pixel
     water_shift_map = numpy.nan + numpy.empty([x_size,y_size])
@@ -196,10 +188,11 @@ def cest_spectrum(scn_to_analyse,
         # Return the x-axis (new) and the y-axis (tmp)
         return new,tmp[ind]
 
-def plotBaselineDiffs(xrawdata, 
-                      yrawdata,
-                      polynomialDegree=5,
-                      removePeaksDict = None):
+
+def h_baselineDiffs(xd, 
+                    yd,
+                    polynomialDegree=5,
+                    removePeaksDict = None):
     
     # Define a function to evaluate the fit given an x-array and coefficients 
     def evaluate_fit(x, coeffs):
@@ -208,9 +201,10 @@ def plotBaselineDiffs(xrawdata,
             yy += coeffs[i]*x**(len(coeffs)-i - 1)
         return yy    
 
-    # Initialize xd (xdata) and xindex (xi), force to array
-    xrawdata = numpy.array(xrawdata)
-    xd = xrawdata
+    # Initialize xindex (xi), force to array
+
+    xd = numpy.array(xd)    
+    yd = numpy.array(yd)
     xi = numpy.ones(shape=[len(xd)])
     
     # If multiple peakes need to be removed
@@ -219,12 +213,8 @@ def plotBaselineDiffs(xrawdata,
         for k,v in removePeaksDict.iteritems():
             xi = xi * numpy.where(numpy.all([xd >= v[0],xd <= v[1]],
                                             axis=0),numpy.nan,1)
-
-    # Get the corresponding values of y,x after it has been cleaned, force to array
-    yd = numpy.array(yrawdata)
-    xd = numpy.array(xrawdata)
     
-    # Fit a polynomial of degree 5 to xd,yd
+    # Fit a polynomial to xd,yd
 
     try:
         coeffs = numpy.polyfit(xd[numpy.isfinite(xd*xi)],
@@ -234,16 +224,85 @@ def plotBaselineDiffs(xrawdata,
         coeffs = numpy.ones(shape=[polynomialDegree])*0
 
     # Compute the difference between the fit and the original data
-    diffs = evaluate_fit(xrawdata, coeffs) - yd
-
-    functionEval = evaluate_fit(xrawdata, coeffs)
+    functionEval = evaluate_fit(xd, coeffs)
+    diffs = functionEval - yd    
     
-    # return the x and y coordinates, and the function eval
+    # return the x and y coordinates, diffs, and the function eval
     
     return(list(xd), list(yd), list(diffs), list(functionEval))
 
 
+def fitRemoveBaseline(scn_to_analyse,
+                      removePeaksDict=None,
+                      polynomialOrder=5,
+                      target_ppm = 2.0,
+                      ppm_norm=200.,
+                      pdata_num = 0,
+                      bbox = None,
+                      water_shift_scn_name = None,
+                      water_shift_adata = 'water_shift_map'):
+
+    scn = sarpy.Scan(scn_to_analyse)
+
+    # Size info
+    x_size = scn.pdata[pdata_num].data.shape[0]
+    y_size = scn.pdata[pdata_num].data.shape[1]  
+
+    maxVal = numpy.empty(shape=[x_size,y_size])+numpy.nan
+    ppmVal = numpy.empty(shape=[x_size,y_size])+numpy.nan
+
+    if removePeaksDict is None:
+        removePeaksDict = {'2.5':[1.8,2.4],
+                           '3.4':[3.,3.7],
+                           'max':[5,0]}
+    #### Deal with bounding boxes
+
+    if bbox is None:        
+        bbox = numpy.array([0,x_size-1,0,y_size-1])    
+    else:
+        bbox = scn.adata['bbox'].data
+
+    #### Shift the water peak to 0
+    
+    if water_shift_scn_name:
+
+        water_shift_scn = sarpy.Scan(water_shift_scn_name)
+        water_shift_map = water_shift_scn.adata[water_shift_adata].data
+    else:
+
+        water_shift_map = numpy.zeros(shape=[x_size,y_size])
+
+    #### Loop through the bbox'd array
+    for xcoord in xrange(bbox[0],bbox[1]):
+        
+        for ycoord in xrange(bbox[2],bbox[3]):
+
+            # shift_water_peak is set to False because there isn't enough data around 0 
+            # to successfully shift water peak. Therefore, another method must be used
+            
+            x,y = cest_spectrum(scn.shortdirname,
+                                     xcoord,ycoord,
+                                     normalize_to_ppm=ppm_norm,
+                                     shift_water_peak=False)
+
+            ## Shift the x values such that the water peak is at 0
+            x = x + water_shift_map[xcoord,ycoord]
+
+            xvals,yvals,diffs,fevals = h_baselineDiffs(x,y,polynomialOrder,removePeaksDict)
+            
+            # This fills the Peak size and location arrays.
+            # If the value doesn't work, catch the error
+            
+            try:
+                target_ppm_ind = xd[numpy.where(numpy.all([xd>target_ppm+1,
+                                           xd<target_ppm-1],
+                                           axis=0))]
+
+                maxVal[xcoord,ycoord] = numpy.max(diffs[target_ppm_ind])
+                ppmVal[xcoord,ycoord] = xvals[diffs.index(numpy.max(diffs[target_ppm_ind]))]
+            except ValueError:
+                maxVal[xcoord,ycoord] = numpy.nan
+                ppmVal[xcoord,ycoord] = numpy.nan               
 
 
-
-
+    return maxVal, ppmVal
