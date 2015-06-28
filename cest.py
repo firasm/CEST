@@ -235,7 +235,7 @@ def h_baselineDiffs(xd,
 def fitRemoveBaseline(scn_to_analyse,
                       removePeaksDict=None,
                       polynomialOrder=5,
-                      target_ppm = 2.0,
+                      target_ppm_key = '2.0',
                       ppm_norm=200.,
                       pdata_num = 0,
                       bbox = None,
@@ -294,9 +294,8 @@ def fitRemoveBaseline(scn_to_analyse,
             # If the value doesn't work, catch the error
             
             try:
-                target_ppm_ind = xd[numpy.where(numpy.all([xd>target_ppm+1,
-                                           xd<target_ppm-1],
-                                           axis=0))]
+                x[numpy.where(numpy.all([x>removePeaksDict[target_ppm_key][0],
+                                         x<[x>removePeaksDict[target_ppm_key][1]]],axis=0))]
 
                 maxVal[xcoord,ycoord] = numpy.max(diffs[target_ppm_ind])
                 ppmVal[xcoord,ycoord] = xvals[diffs.index(numpy.max(diffs[target_ppm_ind]))]
