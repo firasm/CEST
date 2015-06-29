@@ -287,18 +287,20 @@ def fitRemoveBaseline(scn_to_analyse,
 
             ## Shift the x values such that the water peak is at 0
             x = x + water_shift_map[xcoord,ycoord]
+            x = numpy.array(x)
 
             xvals,yvals,diffs,fevals = h_baselineDiffs(x,y,polynomialOrder,removePeaksDict)
-            
+            xvals = numpy.array(xvals)
+            diffs = numpy.array(diffs)
             # This fills the Peak size and location arrays.
             # If the value doesn't work, catch the error
             
             try:
-                x[numpy.where(numpy.all([x>removePeaksDict[target_ppm_key][0],
-                                         x<[x>removePeaksDict[target_ppm_key][1]]],axis=0))]
+                target_ppm_ind = numpy.where(numpy.all([xvals>=removePeaksDict[target_ppm_key][0],
+                                         xvals<=removePeaksDict[target_ppm_key][1]],axis=0))
 
                 maxVal[xcoord,ycoord] = numpy.max(diffs[target_ppm_ind])
-                ppmVal[xcoord,ycoord] = xvals[diffs.index(numpy.max(diffs[target_ppm_ind]))]
+                ppmVal[xcoord,ycoord] = xvals[list(diffs).index(numpy.max(diffs[target_ppm_ind]))]
             except ValueError:
                 maxVal[xcoord,ycoord] = numpy.nan
                 ppmVal[xcoord,ycoord] = numpy.nan               
