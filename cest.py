@@ -236,6 +236,8 @@ def fitRemoveBaseline(scn_to_analyse,
                       removePeaksDict=None,
                       polynomialOrder=5,
                       target_ppm_key = '2.0',
+                      consider_min=1.,
+                      consider_max=4.,
                       ppm_norm=200.,
                       pdata_num = 0,
                       bbox = None,
@@ -297,7 +299,9 @@ def fitRemoveBaseline(scn_to_analyse,
             
             try:
                 target_ppm_ind = numpy.where(numpy.all([xvals>=removePeaksDict[target_ppm_key][0],
-                                         xvals<=removePeaksDict[target_ppm_key][1]],axis=0))
+                                                        xvals<=removePeaksDict[target_ppm_key][1],
+                                                        xvals>=consider_min,
+                                                        xvals<=consider_max],axis=0))
 
                 maxVal[xcoord,ycoord] = numpy.max(diffs[target_ppm_ind])
                 ppmVal[xcoord,ycoord] = xvals[list(diffs).index(numpy.max(diffs[target_ppm_ind]))]
