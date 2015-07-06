@@ -335,7 +335,7 @@ def generate_offset_list(skeleton_start,
                                                    v[1],
                                                    v[2]),3))
 
-    print numpy.round(offsetList,3)
+    print [numpy.float("{:.3f}".format(off)) for off in offsetList]
     return numpy.round(offsetList,3)
 
 
