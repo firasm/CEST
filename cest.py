@@ -8,7 +8,7 @@ import numpy
 import sarpy
 import sarpy.fmoosvi.analysis
 import scipy
-
+import collections
 
 ####### Fitting Functions #######
 
@@ -311,3 +311,31 @@ def fitRemoveBaseline(scn_to_analyse,
 
 
     return maxVal, ppmVal
+
+
+def generate_offset_list(skeleton_start,
+                         skeleton_end,
+                         skeleton_step,
+                         additionalDict = None):
+
+    if additionalDict is None:
+        additionalDict = collections.OrderedDict([
+                               ('dummy',[-60,60,10]),
+                               ('start',[-5.1,5.1,0.1]),
+                               ('baseline',[-60,60,10]),       
+                               ('2.5',[2.2,2.5,0.01]),
+                               ('3.4',[3.3,3.5,0.01])
+                              ])
+
+    offsetList = []
+
+    for k,v in additionalDict.iteritems():
+
+        offsetList.extend(numpy.round(numpy.arange(v[0],
+                                                   v[1],
+                                                   v[2]),3))
+
+    print numpy.round(offsetList,3)
+    return numpy.round(offsetList,3)
+
+
