@@ -316,7 +316,9 @@ def fitRemoveBaseline(scn_to_analyse,
 def generate_offset_list(skeleton_start,
                          skeleton_end,
                          skeleton_step,
-                         additionalDict = None):
+                         additionalDict = None,
+                         manuallyInsertedOffsets = None,
+                         manuallyInsertedPositions = None):
 
     if additionalDict is None:
         additionalDict = collections.OrderedDict([
@@ -335,7 +337,18 @@ def generate_offset_list(skeleton_start,
                                                    v[1],
                                                    v[2]),3))
 
-    print [numpy.float("{:.3f}".format(off)) for off in offsetList]
-    return numpy.round(offsetList,3)
+    if manuallyInsertedOffsets is None:
+        print [numpy.float("{:.3f}".format(off)) for off in offsetList]
+        return numpy.round(offsetList,3)
+    else:
+
+        assert len(manuallyInsertedPositions) == len(manuallyInsertedOffsets), "List lengths not the same, please check input lists"
+        
+        for off,pos in zip(manuallyInsertedOffsets,manuallyInsertedPositions):
+
+            offsetList.insert(pos,off)
+
+        print [numpy.float("{:.3f}".format(off)) for off in offsetList]
+        return numpy.round(offsetList,3)            
 
 
