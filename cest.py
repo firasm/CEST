@@ -317,6 +317,7 @@ def generate_offset_list(skeleton_start,
                          skeleton_end,
                          skeleton_step,
                          additionalDict = None,
+                         alternateFreqs = True,
                          manuallyInsertedOffsets = None,
                          manuallyInsertedPositions = None):
 
@@ -337,6 +338,15 @@ def generate_offset_list(skeleton_start,
                                                    v[1],
                                                    v[2]),3))
 
+    # Reorder the list so it's alternating
+    # (largest -> smallest -> next largest -> next smallest ->)
+    # Gotten from: http://stackoverflow.com/questions/17436870/python-alternating-elements-of-a-sorted-array
+    # Of course :-)
+
+    if alternateFreqs is True:
+        offsetList = sum(zip(reversed(offsetList), offsetList), ())[:len(offsetList)]
+
+    # Now manually insert offsets and frequency
     if manuallyInsertedOffsets is None:
         print [numpy.float("{:.3f}".format(off)) for off in offsetList]
         return numpy.round(offsetList,3)
