@@ -361,4 +361,89 @@ def generate_offset_list(skeleton_start,
         print [numpy.float("{:.3f}".format(off)) for off in offsetList]
         return numpy.round(offsetList,3)            
 
+def cest_vtc(scn_to_analyse):
+
+    import pylab
+
+    scan_object = sarpy.Scan(scn_to_analyse)
+    fig = pylab.figure()
+
+    fig.set_size_inches(15, 15)
+    G = pylab.matplotlib.gridspec.GridSpec(1,1, wspace=0.0, hspace=0.0)   
+    dat = scan_object.pdata[0].data
+
+    x_size = dat.shape[0]
+    y_size = dat.shape[1]
+
+    # Deal with bounding boxes
+    try:
+        bbox = scan_object.adata['bbox'].data
+    except KeyError:       
+        bbox = numpy.array([0,x_size-1,0,y_size-1])   
+
+    imgdata = numpy.mean(dat,axis=2)
+    vtcdata = scan_object.adata['vtc'].data
+
+    reps = vtcdata.shape[-1] / imgdata.shape[0]
+
+    axs = fig.add_subplot(G[0, 0])
+    #aspect = scn.method.PVM_SpatResol[0]*(bbox[1]-bbox[0]) / scn.method.PVM_SpatResol[1]*(bbox[3]-bbox[2])
+    aspect= (1.0*scan_object.method.PVM_FovCm[0]/scan_object.method.PVM_Matrix[0])/ \
+            (1.0*scan_object.method.PVM_FovCm[1]/scan_object.method.PVM_Matrix[1])
+
+    axs.imshow(imgdata[bbox[0]:bbox[1],\
+                       bbox[2]:bbox[3]],\
+                       cmap='gray', 
+                       interpolation='None',
+                       alpha=1.0,
+                       zorder=0,
+                       aspect=aspect,
+                       vmin=0,
+                       vmax=1)
+    axs.set_axis_off()
+    fig.canvas.draw()
+    pylab.axis('off')
+
+    #axs=fig.add_subplot(G[0, 0])
+    box = axs.get_position().bounds
+    height = bbox[3] / (bbox[1]-bbox[0])
+
+    for ht,i in enumerate(xrange(bbox[0], bbox[1])):
+
+        #, simply use the add_axes() method which takes a list of 
+        # [left, bottom, width, height] values in 0-1 relative figure coordinates
+
+        #The add_axes method takes a list of four values, which are 
+        #xmin, ymin, dx, and dy for the subplot, where xmin and ymin 
+        #are the coordinates of the lower left corner of the subplot, 
+        #and dx and dy are the width and height of the subplot, 
+        #with all values specified in relative units 
+        #(where 0 is left/bottom and 1 is top/right)
+
+        tmpax = fig.add_axes([box[0], box[1]+ht*height,
+                             box[2], height])
+
+        tmpax.plot(vtcdata[i,((bbox[2])*reps):((bbox[3])*reps)],
+                           color='r', 
+                           linewidth=2,
+                           zorder=1)
+        tmpax.set_axis_off()
+        #pylab.ylim([35000,65000])
+        pylab.xlim([0,((bbox[3])*reps)-(bbox[2])*reps])
+
+    #pylab.savefig('{0}.png'.format(scan_object.shortdirname.split('/')[0]),dpi=600)
+
+    #pylab.close(fig)
+    fig = pylab.figure()
+
+    G = pylab.matplotlib.gridspec.GridSpec(1,1, wspace=0.0, hspace=0.0)
+    #axs=fig.add_subplot(G[0, 0])
+    axs.imshow(numpy.flipud(imgdata[bbox[0]:bbox[1],\
+                           bbox[2]:bbox[3]]),\
+                           cmap='gray', 
+                           interpolation='None',
+                           alpha=.5,
+                           zorder=0,
+                           aspect=aspect)  
+    axs.set_axis_off()        
 
