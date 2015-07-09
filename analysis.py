@@ -423,10 +423,10 @@ def cest_vtc(scn_to_analyse):
 
         tmpax.plot(vtcdata[i,((bbox[2])*reps):((bbox[3])*reps)],
                            color='r', 
-                           linewidth=2,
+                           linewidth=1.5,
                            zorder=1)
         tmpax.set_axis_off()
-        #pylab.ylim([35000,65000])
+        pylab.ylim([0.2,1.1])
         pylab.xlim([0,((bbox[3])*reps)-(bbox[2])*reps])
 
     pylab.savefig('{0}.png'.format(scan_object.shortdirname.split('/')[0]),dpi=600)
