@@ -313,13 +313,10 @@ def fitRemoveBaseline(scn_to_analyse,
     return maxVal, ppmVal
 
 
-def generate_offset_list(skeleton_start,
-                         skeleton_end,
-                         skeleton_step,
-                         additionalDict = None,
-                         alternateFreqs = True,
+def generate_offset_list(additionalDict = None,
                          manuallyInsertedOffsets = None,
-                         manuallyInsertedPositions = None):
+                         manuallyInsertedPositions = None,
+                         alternateFreqs = True):
 
     if additionalDict is None:
         additionalDict = collections.OrderedDict([
