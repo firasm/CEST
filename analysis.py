@@ -341,7 +341,7 @@ def generate_offset_list(additionalDict = None,
     # Of course :-)
 
     if alternateFreqs is True:
-        offsetList = sum(zip(reversed(offsetList), offsetList), ())[:len(offsetList)]
+        offsetList = list(sum(zip(reversed(offsetList), offsetList), ())[:len(offsetList)])
 
     # Now manually insert offsets and frequency
     if manuallyInsertedOffsets is None:
