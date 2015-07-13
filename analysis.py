@@ -144,7 +144,7 @@ def cest_spectrum(scn_to_analyse,
 
     if normalize:
     # Find the frequency to normalize to, throw error if not found
-        possibleNormalizations = [i for i, x in enumerate(freq_list) if x == normalize_to_ppm]
+        possibleNormalizations = [i for i, x in enumerate(freq_list) if numpy.abs(x - normalize_to_ppm) <1E-4]
 
         # By default, select the LAST instance of the freq to avoid approach to steady state issues
         normalizeTo = possibleNormalizations[-1]
