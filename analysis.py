@@ -9,6 +9,7 @@ import sarpy
 import sarpy.fmoosvi.analysis
 import scipy
 import collections
+import pylab
 
 ####### Fitting Functions #######
 
@@ -20,8 +21,8 @@ def h_zspectrum_N(params,freqs):
     for i in numpy.arange(0,len(params[1:]),3):
         
         A = params[i+1] # Amplitude of the peak
-        w0 = params[i+2] # Resonant frequency of sample
-        lw =  params[i+3] # Line width (in units of freqs)
+        lw =  params[i+2] # Line width (in units of freqs)
+        w0 = params[i+3] # Resonant frequency of sample        
 
         # Construct the multiple lorentzians added together
         tmp = numpy.divide(A,(1+4*((freqs-w0)/lw)**2))
@@ -33,7 +34,7 @@ def h_residual_Zspectrum_N(params, y_data, w):
     
     return numpy.abs(y_data - h_zspectrum_N(params,w))    
 
-def fit_water_peak(data,offset_freqs):
+def fit_water_peak(data,offset_freqs,allParams = False):
 
     """
     Fits a Lorentzian to the data, and 
@@ -41,21 +42,35 @@ def fit_water_peak(data,offset_freqs):
 
     """
 
-    # Presumably the maximum signal will be at 
-    # some large frequency offset, so let's just
-    # use that as our baseline parameter
+    # First get rid of all attempts to pass in bad data. If there are any nans in there, toss it.
 
-    # Also, normalize the data so the fit is easier
+    if numpy.isnan(numpy.sum(data)):
+        return numpy.nan
 
-    params_passed = [numpy.max(data),-1.,0.1,0.6]
+    else:
 
-    fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(h_residual_Zspectrum_N,
-        params_passed,
-        args=(data, offset_freqs),
-        full_output = True,
-        maxfev = 200)
+        # Presumably the maximum signal will be at 
+        # some large frequency offset, so let's just
+        # use that as our baseline parameter
 
-    return fit_params[2]
+        # Also, normalize the data so the fit is easier
+
+        params_passed = [numpy.max(data),-1.,0.6,0.03]
+
+        fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(h_residual_Zspectrum_N,
+            params_passed,
+            args=(data, offset_freqs),
+            full_output = True,
+            maxfev = 200)
+
+        #print mesg
+        #print infodict
+
+        if allParams:
+            return fit_params
+
+        else:
+            return fit_params[2]
 
 def shift_water_peak(scn_to_analyse=None, 
                      bbox = None,
@@ -362,30 +377,30 @@ def cest_vtc(scn_to_analyse):
 
     import pylab
 
-    scan_object = sarpy.Scan(scn_to_analyse)
+    scn = sarpy.Scan(scn_to_analyse)
     fig = pylab.figure()
 
     fig.set_size_inches(20, 20)
     G = pylab.matplotlib.gridspec.GridSpec(1,1, wspace=0.0, hspace=0.0)   
-    dat = scan_object.pdata[0].data
+    dat = scn.pdata[0].data
 
     x_size = dat.shape[0]
     y_size = dat.shape[1]
 
     # Deal with bounding boxes
     try:
-        bbox = scan_object.adata['bbox'].data
+        bbox = scn.adata['bbox'].data
     except KeyError:       
         bbox = numpy.array([0,x_size-1,0,y_size-1])   
 
     imgdata = numpy.mean(dat,axis=2)
-    vtcdata = scan_object.adata['vtc'].data
+    vtcdata = scn.adata['vtc'].data
 
     reps = vtcdata.shape[-1] / imgdata.shape[0]
 
     axs = fig.add_subplot(G[0, 0])
-    aspect= (1.0*scan_object.method.PVM_FovCm[0]/scan_object.method.PVM_Matrix[0])/ \
-            (1.0*scan_object.method.PVM_FovCm[1]/scan_object.method.PVM_Matrix[1])
+    aspect= (1.0*scn.method.PVM_FovCm[0]/scn.method.PVM_Matrix[0])/ \
+            (1.0*scn.method.PVM_FovCm[1]/scn.method.PVM_Matrix[1])
 
     axs.imshow(imgdata[bbox[0]:bbox[1],\
                        bbox[2]:bbox[3]],\
@@ -429,7 +444,7 @@ def cest_vtc(scn_to_analyse):
     pylab.savefig('{0}.png'.format(scan_object.shortdirname.split('/')[0]),dpi=600)
 
     #pylab.close(fig)
-    fig = pylab.figure()
+    fig = pylab.figure(figsize=(12,8))
 
     G = pylab.matplotlib.gridspec.GridSpec(1,1, wspace=0.0, hspace=0.0)
     #axs=fig.add_subplot(G[0, 0])
@@ -441,4 +456,300 @@ def cest_vtc(scn_to_analyse):
                            zorder=0,
                            aspect=aspect)  
     axs.set_axis_off()        
+
+
+
+def fit_5_peaks_cest(scn_to_analyse):
+
+    def zspectrum_N(params,freqs):
+
+        arr = numpy.empty_like(freqs)*0
+        shift =  params[0]
+
+        for i in numpy.arange(0,len(params[1:]),3):
+
+            A = params[i+1]
+            lw =  params[i+2]
+            w0 = params[i+3]
+            tmp = numpy.divide(A,(1+4*((freqs-w0)/lw)**2))
+
+            arr = arr+tmp
+        return (arr+shift)
+
+    def h_residual_Zspectrum_N(params, y_data, w):
+        penalty = 0
+
+        for i in numpy.arange(1,len(params[1:]),3):
+
+            if i==1:
+                # lw penalty
+                if (0.1 < params[i+1] < 2.0):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+1] - 1.7)  
+                # w0 penalty
+                if (1.8 < params[i+2] < 2.2):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+2] - 2.2)
+            elif i==4:
+                # lw penalty 
+                if (0.1 < params[i+1] < 2.0):
+                    penalty+=0
+                else:            
+                    penalty += penaltyfn(params[i+1] - 0.71)
+                # w0 penalty
+                if (3.3 < params[i+2] < 3.7):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+2] - 3.5)                    
+            elif i==7:
+                # lw penalty 
+                if (0.1 < params[i+1] < 2.0):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+1] - 1.43)
+                # w0 penalty
+                if (-3.5 < params[i+2] < -3.1):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+2] - -3.3)                    
+            elif i==10:
+                # lw penalty
+                if (0.1 < params[i+1] < 2.0):
+                    penalty+=0
+                else:            
+                    penalty += penaltyfn(params[i+1] - 1.21)
+                # w0 penalty
+                if (-2.1 < params[i+2] < -1.7):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+2] - -1.9)                    
+            elif i==13:
+                # lw penalty
+                if (10 < params[i+1] < 60):
+                    penalty+=0
+                else:            
+                    penalty += penaltyfn(params[i+1] - 30)/10.
+                # w0 penalty
+                if (-3.0 < params[i+2] < 3.0):
+                    penalty+=0
+                else:
+                    penalty += penaltyfn(params[i+2] - 3)                    
+        return numpy.abs(y_data - zspectrum_N(params,w)) +penalty 
+
+    def makeParamArray(paramDict, fixw0 = False): 
+        params = []   
+        params.append(paramDict['shift'])
+
+        if fixw0:
+            for paramKey,p, in paramDict.iteritems():
+                if paramKey != 'shift':
+                    params.append(p['A'])
+                    params.append(p['lw'])
+                else:
+                    continue 
+            return params
+
+        else:
+            for paramKey,p, in paramDict.iteritems():
+                if paramKey != 'shift':
+                    params.append(p['A'])
+                    params.append(p['lw'])    
+                    params.append(p['w0'])
+                else:
+                    continue                 
+            return params    
+
+    def penaltyfn(x):
+
+        return (x)**8.0
+
+    scn = sarpy.Scan(scn_to_analyse)
+    roi = scn.adata['roi'].data
+    roi = numpy.reshape(roi,[64,64,1])
+    cestscan_roi = scn.pdata[0].data * roi
+
+    #green
+    peak1dict = {'A':-0.09,
+                 'lw':1.7,
+                 'w0':2.2}
+    #red
+    peak2dict = {'A':-0.07,
+                 'lw':.7,
+                 'w0':3.5}
+    #cyan
+    peak3dict = {'A':-0.1,
+                 'lw':1.4,
+                 'w0': -3.3}
+    #yellow
+    peak4dict = {'A':-0.06,
+                 'lw':1.2,
+                 'w0': -1.9}
+    #purple    
+    peak5dict = {'A':-0.19,
+                 'lw':30.0,
+                 'w0':3.0}
+
+    shift = 0.2
+    paramDict = collections.OrderedDict()
+    paramDict['peak1'] = peak1dict
+    paramDict['peak2'] = peak2dict
+    paramDict['peak3'] = peak3dict
+    paramDict['peak4'] = peak4dict
+    paramDict['peak5'] = peak5dict
+    paramDict['shift'] = shift
+
+    testParams = makeParamArray(paramDict,fixw0=False)        
+
+    # Fit multiple peaks, need some empty arrays       
+    pk1_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk1_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk1_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk2_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk2_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk2_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk3_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk3_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk3_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk4_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk4_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk4_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk5_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk5_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk5_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    fit_quality = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    # Defining parameters
+
+    freq_list = scn.method.CEST_FreqListPPM
+
+    ppm_limit_min = -50
+    ppm_limit_max = 50
+    exclude_ppm = 200
+    normalize_to_ppm = 66.6
+    pdata_num = 0
+
+    possibleNormalizations = [i for i, x in enumerate(freq_list) if numpy.abs(x - normalize_to_ppm) <1E-4]
+    normalizeTo = possibleNormalizations[-1]
+
+    # Get only the frequencies within the ppm_limit
+    ppm_filtered = [f for f in freq_list if ppm_limit_max > f > ppm_limit_min]
+
+    # Exclude the dummy frequencies at the beginning (66.6 ppm)
+    ppm_filtered = sorted([n for n in ppm_filtered if n!= exclude_ppm])
+
+    # Get the index of the good frequencies relative to the original list 
+    ppm_filtered_ind = [freq_list.index(c) for c in ppm_filtered]  
+
+    # get the freqs that'll be used for water fit
+    water_fit_freqs = [f for f in ppm_filtered if (numpy.abs(f)< 2.)]
+    water_fit_freqs_ind = sorted([ppm_filtered.index(c) for c in water_fit_freqs])
+
+    # Create some empty arrays
+    water_shifts = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    new_shifted = numpy.empty(shape=(water_shifts.shape[0], water_shifts.shape[0], len(ppm_filtered))) + numpy.nan
+
+    for xval in xrange(new_shifted.shape[0]):    
+        for yval in xrange(new_shifted.shape[1]):
+
+            # Get the data and normalize it to index of normalize_to_ppm
+            tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]    
+            pylab.figure(figsize=(12,8))            
+
+            # Check to make sure I'm inside the ROI
+            if numpy.isfinite(numpy.sum(tmp)):            
+
+                # First do the water fit and shift the data so water is at 0  
+                shiftParams = fit_water_peak(tmp[water_fit_freqs_ind],water_fit_freqs,allParams=True)
+                shift = shiftParams[3]
+                water_shifts[xval,yval] = shift
+
+                # Interpolation happens here
+                if numpy.isfinite(shift):
+                    s_shifted_back = scipy.interp(ppm_filtered+shift, ppm_filtered, tmp)
+                    new_shifted[xval,yval,:] = s_shifted_back       
+                else:
+                    pass            
+                
+                # Then do another water fit on the processed data to subtract it away
+                shiftParams2 = fit_water_peak(new_shifted[xval,yval][water_fit_freqs_ind],water_fit_freqs,allParams=True)
+                
+                # Subtract water peak away
+                data_watersupp = new_shifted[xval,yval] - zspectrum_N(shiftParams2,ppm_filtered)
+
+                fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
+                                                            h_residual_Zspectrum_N,
+                                                            testParams,
+                                                            args=(data_watersupp, ppm_filtered), 
+                                                            full_output = True,
+                                                            maxfev = 900)
+                w = numpy.arange(-7.,7.,0.01)
+
+                # Specify paramsets for peaks:
+                pk1 = [fit_params[0]]+list(fit_params[1:4])
+                pk2 = [fit_params[0]]+list(fit_params[4:7])
+                pk3 = [fit_params[0]]+list(fit_params[7:10])
+                pk4 = [fit_params[0]]+list(fit_params[10:13])
+                pk5 = [fit_params[0]]+list(fit_params[13:16])
+
+                pylab.plot(w,zspectrum_N(testParams, w),label='start',color='pink')
+                pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=3,color='b')
+                pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
+                pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
+                pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
+                pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
+                pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='purple') # peak5
+
+                # Draw vertical lines at peak positions
+                pylab.axvline(pk1[-1],color='g')
+                pylab.axvline(pk2[-1],color='r')
+                pylab.axvline(pk3[-1],color='c')
+                pylab.axvline(pk4[-1],color='y')
+                #axvline(pk5[-1],color='purple')
+
+                pylab.plot(ppm_filtered,data_watersupp,'o-',color='k')
+                pylab.xlim(6,-6)
+                pylab.ylim(-0.5,0.3)
+                pylab.title('Fit for pixel {0},{1}'.format(xval,yval))
+                pylab.legend(loc='lower right')
+
+                pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
+
+                pk1_amp[xval,yval] = fit_params[1]
+                pk1_width[xval,yval] = fit_params[2]
+                pk1_pos[xval,yval] = fit_params[3]
+
+                pk2_amp[xval,yval] = fit_params[4]
+                pk2_width[xval,yval] = fit_params[5]
+                pk2_pos[xval,yval] = fit_params[6]
+
+                pk3_amp[xval,yval] = fit_params[7]
+                pk3_width[xval,yval] = fit_params[8]
+                pk3_pos[xval,yval] = fit_params[9]
+
+                pk4_amp[xval,yval] = fit_params[10]
+                pk4_width[xval,yval] = fit_params[11]            
+                pk4_pos[xval,yval] = fit_params[12]
+
+                pk5_amp[xval,yval] = fit_params[13]
+                pk5_width[xval,yval] = fit_params[14]            
+                pk5_pos[xval,yval] = fit_params[15]                
+
+                fit_quality[xval,yval] = scipy.nansum(h_residual_Zspectrum_N(fit_params,data_watersupp,ppm_filtered))
+
+                pylab.clf()                
+
+    return {'Green' : [pk1_amp, pk1_width, pk1_pos], 
+            'Red' : [pk2_amp, pk2_width, pk2_pos],
+            'Cyan' : [pk3_amp, pk3_width, pk3_pos],
+            'Yellow' : [pk4_amp, pk4_width, pk4_pos],
+            'Purple' : [pk5_amp, pk5_width, pk5_pos],
+            'fit_quality':fit_quality}
+
 
