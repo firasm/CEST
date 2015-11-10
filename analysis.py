@@ -459,7 +459,7 @@ def cest_vtc(scn_to_analyse):
 
 
 
-def fit_5_peaks_cest(scn_to_analyse):
+def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
 
     def zspectrum_N(params,freqs):
 
@@ -659,8 +659,7 @@ def fit_5_peaks_cest(scn_to_analyse):
         for yval in xrange(new_shifted.shape[1]):
 
             # Get the data and normalize it to index of normalize_to_ppm
-            tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]    
-            pylab.figure(figsize=(12,8))            
+            tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]           
 
             # Check to make sure I'm inside the ROI
             if numpy.isfinite(numpy.sum(tmp)):            
@@ -697,30 +696,7 @@ def fit_5_peaks_cest(scn_to_analyse):
                 pk3 = [fit_params[0]]+list(fit_params[7:10])
                 pk4 = [fit_params[0]]+list(fit_params[10:13])
                 pk5 = [fit_params[0]]+list(fit_params[13:16])
-
-                pylab.plot(w,zspectrum_N(testParams, w),label='start',color='pink')
-                pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=3,color='b')
-                pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
-                pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
-                pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
-                pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
-                pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='purple') # peak5
-
-                # Draw vertical lines at peak positions
-                pylab.axvline(pk1[-1],color='g')
-                pylab.axvline(pk2[-1],color='r')
-                pylab.axvline(pk3[-1],color='c')
-                pylab.axvline(pk4[-1],color='y')
-                #axvline(pk5[-1],color='purple')
-
-                pylab.plot(ppm_filtered,data_watersupp,'o-',color='k')
-                pylab.xlim(6,-6)
-                pylab.ylim(-0.5,0.3)
-                pylab.title('Fit for pixel {0},{1}'.format(xval,yval))
-                pylab.legend(loc='lower right')
-
-                pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
-
+                
                 pk1_amp[xval,yval] = fit_params[1]
                 pk1_width[xval,yval] = fit_params[2]
                 pk1_pos[xval,yval] = fit_params[3]
@@ -743,13 +719,42 @@ def fit_5_peaks_cest(scn_to_analyse):
 
                 fit_quality[xval,yval] = scipy.nansum(h_residual_Zspectrum_N(fit_params,data_watersupp,ppm_filtered))
 
-                pylab.clf()                
+                # Plot the data voxel by voxel
+
+                if saveGraphs:
+                    pylab.figure(figsize=(12,8))                         
+
+                    pylab.plot(w,zspectrum_N(testParams, w),label='start',color='pink')
+                    pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=3,color='b')
+                    pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
+                    pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
+                    pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
+                    pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
+                    pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='purple') # peak5
+
+                    # Draw vertical lines at peak positions
+                    pylab.axvline(pk1[-1],color='g')
+                    pylab.axvline(pk2[-1],color='r')
+                    pylab.axvline(pk3[-1],color='c')
+                    pylab.axvline(pk4[-1],color='y')
+                    #axvline(pk5[-1],color='purple')                
+
+                    pylab.plot(ppm_filtered,data_watersupp,'o-',color='k')
+                    pylab.xlim(6,-6)
+                    pylab.ylim(-0.5,0.3)
+                    pylab.title('Fit for pixel {0},{1} \n Residual: {2}'.format(xval,yval,fit_quality[xval,yval]))
+                    pylab.legend(loc='lower right')
+
+                    pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
+                    pylab.clf()                  
+              
 
     return {'Green' : [pk1_amp, pk1_width, pk1_pos], 
             'Red' : [pk2_amp, pk2_width, pk2_pos],
             'Cyan' : [pk3_amp, pk3_width, pk3_pos],
             'Yellow' : [pk4_amp, pk4_width, pk4_pos],
             'Purple' : [pk5_amp, pk5_width, pk5_pos],
-            'fit_quality':fit_quality}
+            'fit_quality':fit_quality,
+            'fitparams': fit_params}
 
 
