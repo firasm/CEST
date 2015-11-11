@@ -457,9 +457,48 @@ def cest_vtc(scn_to_analyse):
                            aspect=aspect)  
     axs.set_axis_off()        
 
-
-
 def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
+
+    def get_neighbours_starting(fit_arr,i,j):
+
+        if fit_arr[i,j-1] != None:
+            return fit_arr[i,j-1][0]
+        elif fit_arr[i-1,j] != None:
+            return fit_arr[i-1,j][0]    
+        elif fit_arr[i-1,j-1] != None: 
+            return fit_arr[i-1,j-1][0]
+        else:
+            #green
+            peak1dict = {'A':-0.09,
+                         'lw':1.3,
+                         'w0':2.2}
+            #red
+            peak2dict = {'A':-0.08,
+                         'lw':1.0,
+                         'w0':3.5}
+            #cyan
+            peak3dict = {'A':-0.13,
+                         'lw':3.5,
+                         'w0': -3.3}
+            #yellow
+            peak4dict = {'A':-0.06,
+                         'lw':1.2,
+                         'w0': -3.}
+            #purple    
+            peak5dict = {'A':-0.9,
+                         'lw':1.3,
+                         'w0':0.01}
+
+            shift = 1
+            paramDict = collections.OrderedDict()
+            paramDict['peak1'] = peak1dict
+            paramDict['peak2'] = peak2dict
+            paramDict['peak3'] = peak3dict
+            paramDict['peak4'] = peak4dict
+            paramDict['peak5'] = peak5dict
+            paramDict['shift'] = shift
+
+            return makeParamArray(paramDict,fixw0=False)  
 
     def zspectrum_N(params,freqs):
 
@@ -471,71 +510,82 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
             A = params[i+1]
             lw =  params[i+2]
             w0 = params[i+3]
-            tmp = numpy.divide(A,(1+4*((freqs-w0)/lw)**2))
 
+            tmp = numpy.divide(A,(1+4*((freqs-w0)/lw)**2))
+            
+            for ind,v in enumerate(tmp):
+                if numpy.isnan(v):
+                    if numpy.isnan(tmp[ind-1]):
+                        tmp[ind] = tmp[ind-2]
+                        if numpy.isnan(tmp[ind-2]):
+
+                            print('fail')
+                    else:
+                        tmp[ind] = tmp[ind-1]
+                    
             arr = arr+tmp
+
+        #nanlocs = numpy.isnan(arr)
+        #arr[nanlocs] = arr[nanlocs-1]
+
+        if numpy.isnan(numpy.sum(arr)):
+            print 'hallelujah'#, params
         return (arr+shift)
+
+    def penaltyfn(x,centre=0., scale=1., trough_width=1., steepness=2.):
+
+        return scale*((centre-x)/trough_width)**(2*steepness)
 
     def h_residual_Zspectrum_N(params, y_data, w):
         penalty = 0
 
         for i in numpy.arange(1,len(params[1:]),3):
+        #return scale*((centre-x)/trough_width)**(2*steepness)
 
-            if i==1:
+            if i==1: #green 
                 # lw penalty
-                if (0.1 < params[i+1] < 2.0):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+1] - 1.7)  
+                penalty += penaltyfn(params[i+1], centre=1.3, scale=1E-3, trough_width=.1)  
                 # w0 penalty
-                if (1.8 < params[i+2] < 2.2):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+2] - 2.2)
-            elif i==4:
+                penalty += penaltyfn(params[i+2], centre=2.2, scale=1E-3, trough_width=.2)
+                #print('\t {0}: {1}'.format(i,penalty))
+            elif i==4: #red
                 # lw penalty 
-                if (0.1 < params[i+1] < 2.0):
-                    penalty+=0
-                else:            
-                    penalty += penaltyfn(params[i+1] - 0.71)
+                penalty += penaltyfn(params[i+1], centre=1.0, scale=1E-3, trough_width=.3)
                 # w0 penalty
-                if (3.3 < params[i+2] < 3.7):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+2] - 3.5)                    
-            elif i==7:
+                penalty += penaltyfn(params[i+2], centre=3.6, scale=1E-3, trough_width=.1)    
+                #print('\t {0}: {1}'.format(i,penalty))            
+            elif i==7: #cyan
+                
+                # Amplitude < 0 penalty 
+                #if params[i] > 0:
+                #    penalty += 1E-3          
                 # lw penalty 
-                if (0.1 < params[i+1] < 2.0):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+1] - 1.43)
+                penalty += penaltyfn(params[i+1], centre=3.5, scale=1E-2,trough_width=.5)
                 # w0 penalty
-                if (-3.5 < params[i+2] < -3.1):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+2] - -3.3)                    
-            elif i==10:
+                penalty += penaltyfn(params[i+2], centre=-3.3, scale=1E-3, trough_width=.3)         
+                #print('\t {0}: {1}'.format(i,penalty))
+
+            elif i==10: #yellow
+                params[i+0] = 0
+                params[i+1] = 0
+                params[i+2] = 0
+
+                # Amplitude < 0 penalty 
+                #if params[i] < 0:
+                #    penalty += 1.
                 # lw penalty
-                if (0.1 < params[i+1] < 2.0):
-                    penalty+=0
-                else:            
-                    penalty += penaltyfn(params[i+1] - 1.21)
+                #penalty += penaltyfn(params[i+1], centre=1.2, scale=1E-3, trough_width=.1)
                 # w0 penalty
-                if (-2.1 < params[i+2] < -1.7):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+2] - -1.9)                    
+                #penalty += penaltyfn(params[i+2], centre=-3, scale=1E-3, trough_width=.3)
+                #print('\t {0}: {1}'.format(i,penalty))
+
             elif i==13:
                 # lw penalty
-                if (10 < params[i+1] < 60):
-                    penalty+=0
-                else:            
-                    penalty += penaltyfn(params[i+1] - 30)/10.
+                penalty += penaltyfn(params[i+1], centre=1.5, scale=1e-3, trough_width=0.3)
                 # w0 penalty
-                if (-3.0 < params[i+2] < 3.0):
-                    penalty+=0
-                else:
-                    penalty += penaltyfn(params[i+2] - 3)                    
+                penalty += penaltyfn(params[i+2], centre=0.01, scale=1e-3, trough_width=.4)
+                #print('\t {0}: {1}'.format(i,penalty))
+            #print scipy.nansum(numpy.abs(y_data - zspectrum_N(params,w))), penalty
         return numpy.abs(y_data - zspectrum_N(params,w)) +penalty 
 
     def makeParamArray(paramDict, fixw0 = False): 
@@ -548,7 +598,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     params.append(p['A'])
                     params.append(p['lw'])
                 else:
-                    continue 
+                    continue
             return params
 
         else:
@@ -561,46 +611,10 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     continue                 
             return params    
 
-    def penaltyfn(x):
-
-        return (x)**8.0
-
     scn = sarpy.Scan(scn_to_analyse)
     roi = scn.adata['roi'].data
     roi = numpy.reshape(roi,[64,64,1])
-    cestscan_roi = scn.pdata[0].data * roi
-
-    #green
-    peak1dict = {'A':-0.09,
-                 'lw':1.7,
-                 'w0':2.2}
-    #red
-    peak2dict = {'A':-0.07,
-                 'lw':.7,
-                 'w0':3.5}
-    #cyan
-    peak3dict = {'A':-0.1,
-                 'lw':1.4,
-                 'w0': -3.3}
-    #yellow
-    peak4dict = {'A':-0.06,
-                 'lw':1.2,
-                 'w0': -1.9}
-    #purple    
-    peak5dict = {'A':-0.19,
-                 'lw':30.0,
-                 'w0':3.0}
-
-    shift = 0.2
-    paramDict = collections.OrderedDict()
-    paramDict['peak1'] = peak1dict
-    paramDict['peak2'] = peak2dict
-    paramDict['peak3'] = peak3dict
-    paramDict['peak4'] = peak4dict
-    paramDict['peak5'] = peak5dict
-    paramDict['shift'] = shift
-
-    testParams = makeParamArray(paramDict,fixw0=False)        
+    cestscan_roi = scn.pdata[0].data * roi       
 
     # Fit multiple peaks, need some empty arrays       
     pk1_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
@@ -624,6 +638,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
     pk5_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
 
     fit_quality = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    fit_params_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
 
     # Defining parameters
 
@@ -648,7 +663,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
     ppm_filtered_ind = [freq_list.index(c) for c in ppm_filtered]  
 
     # get the freqs that'll be used for water fit
-    water_fit_freqs = [f for f in ppm_filtered if (numpy.abs(f)< 2.)]
+    water_fit_freqs = [f for f in ppm_filtered if (numpy.abs(f)< 3.)]
     water_fit_freqs_ind = sorted([ppm_filtered.index(c) for c in water_fit_freqs])
 
     # Create some empty arrays
@@ -657,13 +672,13 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
 
     for xval in xrange(new_shifted.shape[0]):    
         for yval in xrange(new_shifted.shape[1]):
+    ## Turn off loop over all voxels
 
             # Get the data and normalize it to index of normalize_to_ppm
             tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]           
 
             # Check to make sure I'm inside the ROI
             if numpy.isfinite(numpy.sum(tmp)):            
-
                 # First do the water fit and shift the data so water is at 0  
                 shiftParams = fit_water_peak(tmp[water_fit_freqs_ind],water_fit_freqs,allParams=True)
                 shift = shiftParams[3]
@@ -674,21 +689,29 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     s_shifted_back = scipy.interp(ppm_filtered+shift, ppm_filtered, tmp)
                     new_shifted[xval,yval,:] = s_shifted_back       
                 else:
+                    print shift
                     pass            
-                
+
                 # Then do another water fit on the processed data to subtract it away
-                shiftParams2 = fit_water_peak(new_shifted[xval,yval][water_fit_freqs_ind],water_fit_freqs,allParams=True)
-                
+                #shiftParams2 = fit_water_peak(new_shifted[xval,yval][water_fit_freqs_ind],water_fit_freqs,allParams=True)
+
                 # Subtract water peak away
-                data_watersupp = new_shifted[xval,yval] - zspectrum_N(shiftParams2,ppm_filtered)
+                #data_watersupp = new_shifted[xval,yval] - zspectrum_N(shiftParams2,ppm_filtered)
+                data_watersupp = new_shifted[xval,yval]
+
+                testParams = get_neighbours_starting(fit_params_arr,xval,yval)
 
                 fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
                                                             h_residual_Zspectrum_N,
                                                             testParams,
                                                             args=(data_watersupp, ppm_filtered), 
                                                             full_output = True,
-                                                            maxfev = 900)
-                w = numpy.arange(-7.,7.,0.01)
+                                                            maxfev = 900,
+                                                            ftol =1E-9)
+
+                #print testParams-fit_params
+                #print ('**')
+                w = numpy.arange(-20.,20.,0.01)
 
                 # Specify paramsets for peaks:
                 pk1 = [fit_params[0]]+list(fit_params[1:4])
@@ -696,7 +719,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                 pk3 = [fit_params[0]]+list(fit_params[7:10])
                 pk4 = [fit_params[0]]+list(fit_params[10:13])
                 pk5 = [fit_params[0]]+list(fit_params[13:16])
-                
+
                 pk1_amp[xval,yval] = fit_params[1]
                 pk1_width[xval,yval] = fit_params[2]
                 pk1_pos[xval,yval] = fit_params[3]
@@ -717,20 +740,21 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                 pk5_width[xval,yval] = fit_params[14]            
                 pk5_pos[xval,yval] = fit_params[15]                
 
-                fit_quality[xval,yval] = scipy.nansum(h_residual_Zspectrum_N(fit_params,data_watersupp,ppm_filtered))
+                fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
+                fit_params_arr[xval,yval] = (fit_params,ppm_filtered)
 
                 # Plot the data voxel by voxel
 
                 if saveGraphs:
                     pylab.figure(figsize=(12,8))                         
 
-                    pylab.plot(w,zspectrum_N(testParams, w),label='start',color='pink')
-                    pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=3,color='b')
+                    pylab.plot(w,zspectrum_N(testParams, w),label='start',color='purple',linewidth=1)
+                    pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=2,color='b')
                     pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
                     pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
                     pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
                     pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
-                    pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='purple') # peak5
+                    pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='pink') # peak5
 
                     # Draw vertical lines at peak positions
                     pylab.axvline(pk1[-1],color='g')
@@ -739,22 +763,21 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     pylab.axvline(pk4[-1],color='y')
                     #axvline(pk5[-1],color='purple')                
 
-                    pylab.plot(ppm_filtered,data_watersupp,'o-',color='k')
-                    pylab.xlim(6,-6)
-                    pylab.ylim(-0.5,0.3)
+                    pylab.plot(ppm_filtered,data_watersupp,'o-',color='pink',label='raw')
+                    pylab.xlim(15,-15)
+                    #pylab.ylim(-0.5,0.3)
                     pylab.title('Fit for pixel {0},{1} \n Residual: {2}'.format(xval,yval,fit_quality[xval,yval]))
                     pylab.legend(loc='lower right')
 
                     pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
                     pylab.clf()                  
-              
 
     return {'Green' : [pk1_amp, pk1_width, pk1_pos], 
-            'Red' : [pk2_amp, pk2_width, pk2_pos],
-            'Cyan' : [pk3_amp, pk3_width, pk3_pos],
-            'Yellow' : [pk4_amp, pk4_width, pk4_pos],
-            'Purple' : [pk5_amp, pk5_width, pk5_pos],
-            'fit_quality':fit_quality,
-            'fitparams': fit_params}
+    'Red' : [pk2_amp, pk2_width, pk2_pos],
+    'Cyan' : [pk3_amp, pk3_width, pk3_pos],
+    'Yellow' : [pk4_amp, pk4_width, pk4_pos],
+    'Purple' : [pk5_amp, pk5_width, pk5_pos],
+    'fit_quality':fit_quality,
+    'fitparams': fit_params_arr}
 
 
