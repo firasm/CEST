@@ -11,10 +11,18 @@ import pylab
 
 ####### Fitting Functions #######
 
-def h_zspectrum_N(params,freqs):
+def h_zspectrum_N(paramStructuredArray,freqs):
+    ''' Updated Zspectrum N function to now require a structured array of params'''
     
     arr = numpy.empty_like(freqs)*0
-    shift =  params[0]
+    shift =  paramStructuredArray['offset']
+
+    # Convert this to a regular list so that it can be added as lorentzians
+    params = []
+    for f in paramStructuredArray.dtype.fields:
+        params.append(paramStructuredArray[f])
+        
+    params = numpy.array(params)
     
     for i in numpy.arange(0,len(params[1:]),3):
         
