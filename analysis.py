@@ -459,12 +459,12 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
 
     def get_neighbours_starting(fit_arr,i,j):
 
-        if fit_arr[i,j-1] != None:
-            return fit_arr[i,j-1][0]
-        elif fit_arr[i-1,j] != None:
-            return fit_arr[i-1,j][0]    
-        elif fit_arr[i-1,j-1] != None: 
-            return fit_arr[i-1,j-1][0]
+        if numpy.isfinite(numpy.sum(fit_arr[i,j-1])):
+            return fit_arr[i,j-1]
+        elif numpy.isfinite(numpy.sum(fit_arr[i-1,j])):
+            return fit_arr[i-1,j]  
+        elif numpy.isfinite(numpy.sum(fit_arr[i-1,j-1])): 
+            return fit_arr[i-1,j-1]
         else:
             #green
             peak1dict = {'A':-0.09,
@@ -606,17 +606,40 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     params.append(p['lw'])    
                     params.append(p['w0'])
                 else:
-                    continue                 
+                    continue                   
             return params    
 
     scn = sarpy.Scan(scn_to_analyse)
     roi = scn.adata['roi'].data
-    roi = numpy.reshape(roi,[64,64,1])
+    datashape = roi.shape
+    roi = numpy.reshape(roi,[roi.shape[0],roi.shape[1],1])
     cestscan_roi = scn.pdata[0].data * roi       
 
-    # Fit multiple peaks, need some empty arrays       
+    # Fit multiple peaks, need some empty arrays
+    offst = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk1_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk1_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk1_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk2_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk2_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk2_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk3_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk3_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk3_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk4_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk4_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk4_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
+    pk5_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk5_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk5_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+
     fit_quality = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
     fit_params_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
+    fit_params_arr[:] = numpy.nan
     ppm_corrected_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
 
     # Defining parameters
@@ -698,8 +721,29 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                 pk2 = [fit_params[0]]+list(fit_params[4:7])
                 pk3 = [fit_params[0]]+list(fit_params[7:10])
                 pk4 = [fit_params[0]]+list(fit_params[10:13])
-                pk5 = [fit_params[0]]+list(fit_params[13:16])               
+                pk5 = [fit_params[0]]+list(fit_params[13:16]) 
 
+                offst[xval,yval] = fit_params[0]
+                pk1_amp[xval,yval] = fit_params[1]
+                pk1_width[xval,yval] = fit_params[2]
+                pk1_pos[xval,yval] = fit_params[3]
+
+                pk2_amp[xval,yval] = fit_params[4]
+                pk2_width[xval,yval] = fit_params[5]
+                pk2_pos[xval,yval] = fit_params[6]
+
+                pk3_amp[xval,yval] = fit_params[7]
+                pk3_width[xval,yval] = fit_params[8]
+                pk3_pos[xval,yval] = fit_params[9]
+
+                pk4_amp[xval,yval] = fit_params[10]
+                pk4_width[xval,yval] = fit_params[11]            
+                pk4_pos[xval,yval] = fit_params[12]
+
+                pk5_amp[xval,yval] = fit_params[13]
+                pk5_width[xval,yval] = fit_params[14]            
+                pk5_pos[xval,yval] = fit_params[15]                
+              
                 fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
                 fit_params_arr[xval,yval] = fit_params
                 ppm_corrected_arr[xval,yval] = ppm_filtered
@@ -734,30 +778,32 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     pylab.clf()
     
     # Save the data as a structured array
-    newstruct = np.empty(scn.adata['roi'].data.shape, dtype=[('off', 'float32'),
+    newstruct = numpy.empty(scn.adata['roi'].data.shape, dtype=[('offset', 'float32'),
        ('A1', 'float32'),('w1', 'float32'),('p1', 'float32'),
        ('A2', 'float32'),('w2', 'float32'),('p2', 'float32'),
        ('A3', 'float32'),('w3', 'float32'),('p3', 'float32'),
        ('A4', 'float32'),('w4', 'float32'),('p4', 'float32'),
        ('A5', 'float32'),('w5', 'float32'),('p5', 'float32')])
 
+    # Nan the array so there are no zeroes anywhere
+    newstruct[:] = numpy.nan
 
-    newstruct['offset'] = fit_params_arr[:,:][0]
-    newstruct['A1'] = fit_params_arr[:,:][1]
-    newstruct['w1'] = fit_params_arr[:,:][2]
-    newstruct['p1'] = fit_params_arr[:,:][3]
-    newstruct['A2'] = fit_params_arr[:,:][4]
-    newstruct['w2'] = fit_params_arr[:,:][5]
-    newstruct['p2'] = fit_params_arr[:,:][6]
-    newstruct['A3'] = fit_params_arr[:,:][7]
-    newstruct['W3'] = fit_params_arr[:,:][8]
-    newstruct['p3'] = fit_params_arr[:,:][9]
-    newstruct['A4'] = fit_params_arr[:,:][10]
-    newstruct['W4'] = fit_params_arr[:,:][11]
-    newstruct['p4'] = fit_params_arr[:,:][12]
-    newstruct['A5'] = fit_params_arr[:,:][12]
-    newstruct['W5'] = fit_params_arr[:,:][13]
-    newstruct['p5'] = fit_params_arr[:,:][14]
+    newstruct['offset'] = offst
+    newstruct['A1'] = pk1_amp
+    newstruct['w1'] = pk1_width
+    newstruct['p1'] = pk1_pos
+    newstruct['A2'] = pk2_amp
+    newstruct['w2'] = pk2_width
+    newstruct['p2'] = pk2_pos
+    newstruct['A3'] = pk1_amp
+    newstruct['w3'] = pk3_width
+    newstruct['p3'] = pk3_pos
+    newstruct['A4'] = pk1_amp
+    newstruct['w4'] = pk4_width
+    newstruct['p4'] = pk4_pos
+    newstruct['A5'] = pk1_amp
+    newstruct['w5'] = pk5_width
+    newstruct['p5'] = pk5_pos
 
     return {'':newstruct}
 
