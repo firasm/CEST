@@ -615,28 +615,9 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
     cestscan_roi = scn.pdata[0].data * roi       
 
     # Fit multiple peaks, need some empty arrays       
-    pk1_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk1_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk1_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-
-    pk2_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk2_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk2_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-
-    pk3_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk3_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk3_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-
-    pk4_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk4_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk4_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-
-    pk5_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk5_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk5_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-
     fit_quality = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
     fit_params_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
+    ppm_corrected_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
 
     # Defining parameters
 
@@ -668,8 +649,8 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
     water_shifts = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
     new_shifted = numpy.empty(shape=(water_shifts.shape[0], water_shifts.shape[0], len(ppm_filtered))) + numpy.nan
 
-    for xval in xrange(new_shifted.shape[0]):    
-        for yval in xrange(new_shifted.shape[1]):
+    for xval in range(new_shifted.shape[0]):    
+        for yval in range(new_shifted.shape[1]):
     ## Turn off loop over all voxels
 
             # Get the data and normalize it to index of normalize_to_ppm
@@ -687,7 +668,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     s_shifted_back = scipy.interp(ppm_filtered+shift, ppm_filtered, tmp)
                     new_shifted[xval,yval,:] = s_shifted_back       
                 else:
-                    print shift
+                    print(shift)
                     pass            
 
                 # Then do another water fit on the processed data to subtract it away
@@ -712,34 +693,16 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                 w = numpy.arange(-20.,20.,0.01)
 
                 # Specify paramsets for peaks:
+                #TOFIX: why is the offset applied to each peak
                 pk1 = [fit_params[0]]+list(fit_params[1:4])
                 pk2 = [fit_params[0]]+list(fit_params[4:7])
                 pk3 = [fit_params[0]]+list(fit_params[7:10])
                 pk4 = [fit_params[0]]+list(fit_params[10:13])
-                pk5 = [fit_params[0]]+list(fit_params[13:16])
-
-                pk1_amp[xval,yval] = fit_params[1]
-                pk1_width[xval,yval] = fit_params[2]
-                pk1_pos[xval,yval] = fit_params[3]
-
-                pk2_amp[xval,yval] = fit_params[4]
-                pk2_width[xval,yval] = fit_params[5]
-                pk2_pos[xval,yval] = fit_params[6]
-
-                pk3_amp[xval,yval] = fit_params[7]
-                pk3_width[xval,yval] = fit_params[8]
-                pk3_pos[xval,yval] = fit_params[9]
-
-                pk4_amp[xval,yval] = fit_params[10]
-                pk4_width[xval,yval] = fit_params[11]            
-                pk4_pos[xval,yval] = fit_params[12]
-
-                pk5_amp[xval,yval] = fit_params[13]
-                pk5_width[xval,yval] = fit_params[14]            
-                pk5_pos[xval,yval] = fit_params[15]                
+                pk5 = [fit_params[0]]+list(fit_params[13:16])               
 
                 fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
-                fit_params_arr[xval,yval] = (fit_params,ppm_filtered)
+                fit_params_arr[xval,yval] = fit_params
+                ppm_corrected_arr[xval,yval] = ppm_filtered
 
                 # Plot the data voxel by voxel
 
@@ -768,14 +731,34 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
                     pylab.legend(loc='lower right')
 
                     pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
-                    pylab.clf()                  
+                    pylab.clf()
+    
+    # Save the data as a structured array
+    newstruct = np.empty(scn.adata['roi'].data.shape, dtype=[('off', 'float32'),
+       ('A1', 'float32'),('w1', 'float32'),('p1', 'float32'),
+       ('A2', 'float32'),('w2', 'float32'),('p2', 'float32'),
+       ('A3', 'float32'),('w3', 'float32'),('p3', 'float32'),
+       ('A4', 'float32'),('w4', 'float32'),('p4', 'float32'),
+       ('A5', 'float32'),('w5', 'float32'),('p5', 'float32')])
 
-    return {'Green' : [pk1_amp, pk1_width, pk1_pos], 
-    'Red' : [pk2_amp, pk2_width, pk2_pos],
-    'Cyan' : [pk3_amp, pk3_width, pk3_pos],
-    'Yellow' : [pk4_amp, pk4_width, pk4_pos],
-    'Purple' : [pk5_amp, pk5_width, pk5_pos],
-    'fit_quality':fit_quality,
-    'fitparams': fit_params_arr}
+
+    newstruct['offset'] = fit_params_arr[:,:][0]
+    newstruct['A1'] = fit_params_arr[:,:][1]
+    newstruct['w1'] = fit_params_arr[:,:][2]
+    newstruct['p1'] = fit_params_arr[:,:][3]
+    newstruct['A2'] = fit_params_arr[:,:][4]
+    newstruct['w2'] = fit_params_arr[:,:][5]
+    newstruct['p2'] = fit_params_arr[:,:][6]
+    newstruct['A3'] = fit_params_arr[:,:][7]
+    newstruct['W3'] = fit_params_arr[:,:][8]
+    newstruct['p3'] = fit_params_arr[:,:][9]
+    newstruct['A4'] = fit_params_arr[:,:][10]
+    newstruct['W4'] = fit_params_arr[:,:][11]
+    newstruct['p4'] = fit_params_arr[:,:][12]
+    newstruct['A5'] = fit_params_arr[:,:][12]
+    newstruct['W5'] = fit_params_arr[:,:][13]
+    newstruct['p5'] = fit_params_arr[:,:][14]
+
+    return {'':newstruct}
 
 
