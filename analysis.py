@@ -2,11 +2,9 @@
 
 ####### Imports #######
 
-
-from __future__ import division
 import numpy
 import sarpy
-import sarpy.fmoosvi.analysis
+import sarpy.analysis.analysis
 import scipy
 import collections
 import pylab
@@ -112,8 +110,8 @@ def shift_water_peak(scn_to_analyse=None,
     water_shift_map = numpy.nan + numpy.empty([x_size,y_size])
 
     dat = scn.pdata[0].data
-    for x in xrange(bbox[0],bbox[1]):
-        for y in xrange(bbox[2],bbox[3]):
+    for x in range(bbox[0],bbox[1]):
+        for y in range(bbox[2],bbox[3]):
 
             fit_data = dat[x,y] / numpy.max(dat[x,y])
 
@@ -212,7 +210,7 @@ def h_baselineDiffs(xd,
     # Define a function to evaluate the fit given an x-array and coefficients 
     def evaluate_fit(x, coeffs):
         yy = 0
-        for i in xrange(len(coeffs)):
+        for i in range(len(coeffs)):
             yy += coeffs[i]*x**(len(coeffs)-i - 1)
         return yy    
 
@@ -225,7 +223,7 @@ def h_baselineDiffs(xd,
     # If multiple peakes need to be removed
     if removePeaksDict:
     
-        for k,v in removePeaksDict.iteritems():
+        for k,v in list(removePeaksDict.items()):
             xi = xi * numpy.where(numpy.all([xd >= v[0],xd <= v[1]],
                                             axis=0),numpy.nan,1)
     
@@ -290,9 +288,9 @@ def fitRemoveBaseline(scn_to_analyse,
         water_shift_map = numpy.zeros(shape=[x_size,y_size])
 
     #### Loop through the bbox'd array
-    for xcoord in xrange(bbox[0],bbox[1]):
+    for xcoord in range(bbox[0],bbox[1]):
         
-        for ycoord in xrange(bbox[2],bbox[3]):
+        for ycoord in range(bbox[2],bbox[3]):
 
             # shift_water_peak is set to False because there isn't enough data around 0 
             # to successfully shift water peak. Therefore, another method must be used
@@ -344,7 +342,7 @@ def generate_offset_list(additionalDict = None,
 
     offsetList = []
 
-    for k,v in additionalDict.iteritems():
+    for k,v in list(additionalDict.items()):
 
         offsetList.extend(numpy.round(numpy.arange(v[0],
                                                    v[1],
@@ -356,11 +354,11 @@ def generate_offset_list(additionalDict = None,
     # Of course :-)
 
     if alternateFreqs is True:
-        offsetList = list(sum(zip(reversed(offsetList), offsetList), ())[:len(offsetList)])
+        offsetList = list(sum(list(zip(reversed(offsetList), offsetList)), ())[:len(offsetList)])
 
     # Now manually insert offsets and frequency
     if manuallyInsertedOffsets is None:
-        print [numpy.float("{:.3f}".format(off)) for off in offsetList]
+        print([numpy.float("{:.3f}".format(off)) for off in offsetList])
         return numpy.round(offsetList,3)
     else:
 
@@ -370,7 +368,7 @@ def generate_offset_list(additionalDict = None,
 
             offsetList.insert(pos,off)
 
-        print [numpy.float("{:.3f}".format(off)) for off in offsetList]
+        print([numpy.float("{:.3f}".format(off)) for off in offsetList])
         return numpy.round(offsetList,3)            
 
 def cest_vtc(scn_to_analyse):
@@ -418,7 +416,7 @@ def cest_vtc(scn_to_analyse):
     box = axs.get_position().bounds
     height = box[3] / (bbox[1]-bbox[0])
 
-    for ht,i in enumerate(xrange(bbox[0], bbox[1])):
+    for ht,i in enumerate(range(bbox[0], bbox[1])):
 
         #, simply use the add_axes() method which takes a list of 
         # [left, bottom, width, height] values in 0-1 relative figure coordinates
@@ -529,7 +527,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
         #arr[nanlocs] = arr[nanlocs-1]
 
         if numpy.isnan(numpy.sum(arr)):
-            print 'hallelujah'#, params
+            print('hallelujah')#, params
         return (arr+shift)
 
     def penaltyfn(x,centre=0., scale=1., trough_width=1., steepness=2.):
@@ -593,7 +591,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
         params.append(paramDict['shift'])
 
         if fixw0:
-            for paramKey,p, in paramDict.iteritems():
+            for paramKey,p, in list(paramDict.items()):
                 if paramKey != 'shift':
                     params.append(p['A'])
                     params.append(p['lw'])
@@ -602,7 +600,7 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
             return params
 
         else:
-            for paramKey,p, in paramDict.iteritems():
+            for paramKey,p, in list(paramDict.items()):
                 if paramKey != 'shift':
                     params.append(p['A'])
                     params.append(p['lw'])    
