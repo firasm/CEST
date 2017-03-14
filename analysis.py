@@ -8,10 +8,28 @@ import sarpy.analysis.analysis
 import scipy
 import collections
 import pylab
+import random
 
 ####### Fitting Functions #######
 
-def h_zspectrum_N(paramStructuredArray,freqs):
+def h_zspectrum_N(params,freqs):
+    
+    arr = numpy.empty_like(freqs)*0
+    shift =  params[0]
+    
+    for i in numpy.arange(0,len(params[1:]),3):
+        
+        A = params[i+1] # Amplitude of the peak
+        lw =  params[i+2] # Line width (in units of freqs)
+        w0 = params[i+3] # Resonant frequency of sample        
+
+        # Construct the multiple lorentzians added together
+        tmp = numpy.divide(A,(1+4*((freqs-w0)/lw)**2))
+        
+        arr = arr+tmp
+    return (arr+shift)
+
+def h_zspectrum_New(paramStructuredArray,freqs):
     ''' Updated Zspectrum N function to now require a structured array of params'''
     
     arr = numpy.empty_like(freqs)*0
@@ -140,7 +158,7 @@ def cest_spectrum(scn_to_analyse,
                   exclude_ppm = 66.6,
                   pdata_num = 0):
     
-    """
+    '''
     Does the grunt work of processing freqs to give
     a sequential list of frequencies (rather than alternating).
 
@@ -154,7 +172,7 @@ def cest_spectrum(scn_to_analyse,
 
     :return: new (frequencies in sequential order)
              tmp (data at frequencies in 'new')
-    """ 
+    '''
     scn = sarpy.Scan(scn_to_analyse)
 
     # Get the Frequencies and make them sequential 
@@ -463,34 +481,35 @@ def cest_vtc(scn_to_analyse):
                            aspect=aspect)  
     axs.set_axis_off()        
 
-def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
+def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
 
     def get_neighbours_starting(fit_arr,i,j):
+        #ToFIX: Make this a random game so that any of the pixels are used rather than always the same one.
+        # that way if there's a problem, we can make sure it's fixed in the second iteration
 
-        if numpy.isfinite(numpy.sum(fit_arr[i,j-1])):
+        randint = random.randint(1,4)
+
+        if numpy.isfinite(numpy.sum(fit_arr[i,j])): #first try the same px in case this is a refit
+            return fit_arr[i,j]
+        elif numpy.isfinite(numpy.sum(fit_arr[i,j-1])) and randint ==1:
             return fit_arr[i,j-1]
-        elif numpy.isfinite(numpy.sum(fit_arr[i-1,j])):
+        elif numpy.isfinite(numpy.sum(fit_arr[i-1,j])) and randint ==2:
             return fit_arr[i-1,j]  
-        elif numpy.isfinite(numpy.sum(fit_arr[i-1,j-1])): 
+        elif numpy.isfinite(numpy.sum(fit_arr[i-1,j-1])) and randint ==3: 
             return fit_arr[i-1,j-1]
         else:
-            #green
             peak1dict = {'A':-0.09,
                          'lw':1.3,
                          'w0':2.2}
-            #red
             peak2dict = {'A':-0.08,
                          'lw':1.0,
                          'w0':3.5}
-            #cyan
             peak3dict = {'A':-0.13,
                          'lw':3.5,
                          'w0': -3.3}
-            #yellow
             peak4dict = {'A':-0.06,
                          'lw':1.2,
-                         'w0': -3.}
-            #purple    
+                         'w0': -3.}    
             peak5dict = {'A':-0.9,
                          'lw':1.3,
                          'w0':0.01}
@@ -680,110 +699,112 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
     water_shifts = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
     new_shifted = numpy.empty(shape=(water_shifts.shape[0], water_shifts.shape[0], len(ppm_filtered))) + numpy.nan
 
-    for xval in range(new_shifted.shape[0]):    
-        for yval in range(new_shifted.shape[1]):
-    ## Turn off loop over all voxels
+    # Fit count, this counts the number of rounds the data has been fit
+    fitcount = 0
 
-            # Get the data and normalize it to index of normalize_to_ppm
-            tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]           
+    while fitcount < fitrounds:
+        for xval in range(new_shifted.shape[0]):    
+            for yval in range(new_shifted.shape[1]):
+                # Get the data and normalize it to index of normalize_to_ppm
+                tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]           
 
-            # Check to make sure I'm inside the ROI
-            if numpy.isfinite(numpy.sum(tmp)):            
-                # First do the water fit and shift the data so water is at 0  
-                shiftParams = fit_water_peak(tmp[water_fit_freqs_ind],water_fit_freqs,allParams=True)
-                shift = shiftParams[3]
-                water_shifts[xval,yval] = shift
+                # Check to make sure I'm inside the ROI
+                if numpy.isfinite(numpy.sum(tmp)):            
+                    # First do the water fit and shift the data so water is at 0  
+                    shiftParams = fit_water_peak(tmp[water_fit_freqs_ind],water_fit_freqs,allParams=True)
+                    shift = shiftParams[3]
+                    water_shifts[xval,yval] = shift
 
-                # Interpolation happens here
-                if numpy.isfinite(shift):
-                    s_shifted_back = scipy.interp(ppm_filtered+shift, ppm_filtered, tmp)
-                    new_shifted[xval,yval,:] = s_shifted_back       
-                else:
-                    print(shift)
-                    pass            
+                    # Interpolation happens here
+                    if numpy.isfinite(shift):
+                        s_shifted_back = scipy.interp(ppm_filtered+shift, ppm_filtered, tmp)
+                        new_shifted[xval,yval,:] = s_shifted_back       
+                    else:
+                        print(shift)
+                        pass            
 
-                # Then do another water fit on the processed data to subtract it away
-                #shiftParams2 = fit_water_peak(new_shifted[xval,yval][water_fit_freqs_ind],water_fit_freqs,allParams=True)
+                    # Then do another water fit on the processed data to subtract it away
+                    #shiftParams2 = fit_water_peak(new_shifted[xval,yval][water_fit_freqs_ind],water_fit_freqs,allParams=True)
 
-                # Subtract water peak away
-                #data_watersupp = new_shifted[xval,yval] - zspectrum_N(shiftParams2,ppm_filtered)
-                data_watersupp = new_shifted[xval,yval]
+                    # Subtract water peak away
+                    #data_watersupp = new_shifted[xval,yval] - zspectrum_N(shiftParams2,ppm_filtered)
+                    data_watersupp = new_shifted[xval,yval]
 
-                testParams = get_neighbours_starting(fit_params_arr,xval,yval)
+                    testParams = get_neighbours_starting(fit_params_arr,xval,yval)
 
-                fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
-                                                            h_residual_Zspectrum_N,
-                                                            testParams,
-                                                            args=(data_watersupp, ppm_filtered), 
-                                                            full_output = True,
-                                                            maxfev = 900,
-                                                            ftol =1E-9)
+                    fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
+                                                                h_residual_Zspectrum_N,
+                                                                testParams,
+                                                                args=(data_watersupp, ppm_filtered), 
+                                                                full_output = True,
+                                                                maxfev = 900,
+                                                                ftol =1E-9)
+                    w = numpy.arange(-20.,20.,0.01)
 
-                #print testParams-fit_params
-                #print ('**')
-                w = numpy.arange(-20.,20.,0.01)
+                    # Specify paramsets for peaks:
+                    #TOFIX: why is the offset applied to each peak
+                    pk1 = [fit_params[0]]+list(fit_params[1:4])
+                    pk2 = [fit_params[0]]+list(fit_params[4:7])
+                    pk3 = [fit_params[0]]+list(fit_params[7:10])
+                    pk4 = [fit_params[0]]+list(fit_params[10:13])
+                    pk5 = [fit_params[0]]+list(fit_params[13:16]) 
 
-                # Specify paramsets for peaks:
-                #TOFIX: why is the offset applied to each peak
-                pk1 = [fit_params[0]]+list(fit_params[1:4])
-                pk2 = [fit_params[0]]+list(fit_params[4:7])
-                pk3 = [fit_params[0]]+list(fit_params[7:10])
-                pk4 = [fit_params[0]]+list(fit_params[10:13])
-                pk5 = [fit_params[0]]+list(fit_params[13:16]) 
+                    offst[xval,yval] = fit_params[0]
+                    pk1_amp[xval,yval] = fit_params[1]
+                    pk1_width[xval,yval] = fit_params[2]
+                    pk1_pos[xval,yval] = fit_params[3]
 
-                offst[xval,yval] = fit_params[0]
-                pk1_amp[xval,yval] = fit_params[1]
-                pk1_width[xval,yval] = fit_params[2]
-                pk1_pos[xval,yval] = fit_params[3]
+                    pk2_amp[xval,yval] = fit_params[4]
+                    pk2_width[xval,yval] = fit_params[5]
+                    pk2_pos[xval,yval] = fit_params[6]
 
-                pk2_amp[xval,yval] = fit_params[4]
-                pk2_width[xval,yval] = fit_params[5]
-                pk2_pos[xval,yval] = fit_params[6]
+                    pk3_amp[xval,yval] = fit_params[7]
+                    pk3_width[xval,yval] = fit_params[8]
+                    pk3_pos[xval,yval] = fit_params[9]
 
-                pk3_amp[xval,yval] = fit_params[7]
-                pk3_width[xval,yval] = fit_params[8]
-                pk3_pos[xval,yval] = fit_params[9]
+                    pk4_amp[xval,yval] = fit_params[10]
+                    pk4_width[xval,yval] = fit_params[11]            
+                    pk4_pos[xval,yval] = fit_params[12]
 
-                pk4_amp[xval,yval] = fit_params[10]
-                pk4_width[xval,yval] = fit_params[11]            
-                pk4_pos[xval,yval] = fit_params[12]
+                    pk5_amp[xval,yval] = fit_params[13]
+                    pk5_width[xval,yval] = fit_params[14]            
+                    pk5_pos[xval,yval] = fit_params[15]                
+                  
+                    fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
+                    fit_params_arr[xval,yval] = fit_params
+                    ppm_corrected_arr[xval,yval] = ppm_filtered
 
-                pk5_amp[xval,yval] = fit_params[13]
-                pk5_width[xval,yval] = fit_params[14]            
-                pk5_pos[xval,yval] = fit_params[15]                
-              
-                fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
-                fit_params_arr[xval,yval] = fit_params
-                ppm_corrected_arr[xval,yval] = ppm_filtered
+                    # Plot the data voxel by voxel
 
-                # Plot the data voxel by voxel
+                    if saveGraphs:
+                        # Separate this out into a different function - this is absurd.
+                        pylab.figure(figsize=(12,8))                         
 
-                if saveGraphs:
-                    pylab.figure(figsize=(12,8))                         
+                        pylab.plot(w,zspectrum_N(testParams, w),label='start',color='purple',linewidth=1)
+                        pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=2,color='b')
+                        pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
+                        pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
+                        pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
+                        pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
+                        pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='pink') # peak5
 
-                    pylab.plot(w,zspectrum_N(testParams, w),label='start',color='purple',linewidth=1)
-                    pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=2,color='b')
-                    pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
-                    pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
-                    pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
-                    pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
-                    pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='pink') # peak5
+                        # Draw vertical lines at peak positions
+                        pylab.axvline(pk1[-1],color='g')
+                        pylab.axvline(pk2[-1],color='r')
+                        pylab.axvline(pk3[-1],color='c')
+                        pylab.axvline(pk4[-1],color='y')
+                        #axvline(pk5[-1],color='purple')                
 
-                    # Draw vertical lines at peak positions
-                    pylab.axvline(pk1[-1],color='g')
-                    pylab.axvline(pk2[-1],color='r')
-                    pylab.axvline(pk3[-1],color='c')
-                    pylab.axvline(pk4[-1],color='y')
-                    #axvline(pk5[-1],color='purple')                
+                        pylab.plot(ppm_filtered,data_watersupp,'o-',color='pink',label='raw')
+                        pylab.xlim(15,-15)
+                        #pylab.ylim(-0.5,0.3)
+                        pylab.title('Fit for pixel {0},{1} \n Residual: {2}'.format(xval,yval,fit_quality[xval,yval]))
+                        pylab.legend(loc='lower right')
 
-                    pylab.plot(ppm_filtered,data_watersupp,'o-',color='pink',label='raw')
-                    pylab.xlim(15,-15)
-                    #pylab.ylim(-0.5,0.3)
-                    pylab.title('Fit for pixel {0},{1} \n Residual: {2}'.format(xval,yval,fit_quality[xval,yval]))
-                    pylab.legend(loc='lower right')
+                        pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
+                        pylab.clf()
 
-                    pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
-                    pylab.clf()
+        fitcount+=1 # increment fitcounter
     
     # Save the data as a structured array
     newstruct = numpy.empty(scn.adata['roi'].data.shape, dtype=[('offset', 'float32'),
@@ -803,13 +824,13 @@ def fit_5_peaks_cest(scn_to_analyse, saveGraphs = False):
     newstruct['A2'] = pk2_amp
     newstruct['w2'] = pk2_width
     newstruct['p2'] = pk2_pos
-    newstruct['A3'] = pk1_amp
+    newstruct['A3'] = pk3_amp
     newstruct['w3'] = pk3_width
     newstruct['p3'] = pk3_pos
-    newstruct['A4'] = pk1_amp
+    newstruct['A4'] = pk4_amp
     newstruct['w4'] = pk4_width
     newstruct['p4'] = pk4_pos
-    newstruct['A5'] = pk1_amp
+    newstruct['A5'] = pk5_amp
     newstruct['w5'] = pk5_width
     newstruct['p5'] = pk5_pos
 
