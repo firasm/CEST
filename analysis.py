@@ -79,7 +79,7 @@ def fit_water_peak(data,offset_freqs,allParams = False):
 
         # Also, normalize the data so the fit is easier
 
-        params_passed = [numpy.max(data),-1.,0.6,fitted_freqs[numpy.argmin(data)]]
+        params_passed = [numpy.max(data),-1.,0.6,offset_freqs[numpy.argmin(data)]]
 
         fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(h_residual_Zspectrum_N,
             params_passed,
@@ -479,7 +479,7 @@ def cest_vtc(scn_to_analyse):
                            aspect=aspect)  
     axs.set_axis_off()        
 
-def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
+def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
 
     def get_neighbours_starting(fit_arr,i,j):
         #ToFIX: Make this a random game so that any of the pixels are used rather than always the same one.
@@ -565,19 +565,19 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
         for i in numpy.arange(1,len(params[1:]),3):
         #return scale*((centre-x)/trough_width)**(2*steepness)
 
-            if i==1: #green 
+            if i==1: #pk1  
                 # lw penalty
                 penalty += penaltyfn(params[i+1], centre=1.3, scale=1E-3, trough_width=.1)  
                 # w0 penalty
                 penalty += penaltyfn(params[i+2], centre=2.2, scale=1E-3, trough_width=.2)
                 #print('\t {0}: {1}'.format(i,penalty))
-            elif i==4: #red
+            elif i==4: #pk2
                 # lw penalty 
                 penalty += penaltyfn(params[i+1], centre=1.0, scale=1E-3, trough_width=.3)
                 # w0 penalty
                 penalty += penaltyfn(params[i+2], centre=3.6, scale=1E-3, trough_width=.1)    
                 #print('\t {0}: {1}'.format(i,penalty))            
-            elif i==7: #cyan
+            elif i==7: #pk3
                 
                 # Amplitude < 0 penalty 
                 #if params[i] > 0:
@@ -588,7 +588,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
                 penalty += penaltyfn(params[i+2], centre=-3.3, scale=1E-3, trough_width=.3)         
                 #print('\t {0}: {1}'.format(i,penalty))
 
-            elif i==10: #yellow
+            elif i==10: #pk4
                 params[i+0] = 0
                 params[i+1] = 0
                 params[i+2] = 0
@@ -602,7 +602,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
                 #penalty += penaltyfn(params[i+2], centre=-3, scale=1E-3, trough_width=.3)
                 #print('\t {0}: {1}'.format(i,penalty))
 
-            elif i==13:
+            elif i==13: #pk 5
                 # lw penalty
                 penalty += penaltyfn(params[i+1], centre=1.5, scale=1e-3, trough_width=0.3)
                 # w0 penalty
@@ -774,36 +774,6 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
                     fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
                     fit_params_arr[xval,yval] = fit_params
                     ppm_corrected_arr[xval,yval] = ppm_filtered
-
-                    # Plot the data voxel by voxel
-
-                    if saveGraphs:
-                        # Separate this out into a different function - this is absurd.
-                        pylab.figure(figsize=(12,8))                         
-
-                        pylab.plot(w,zspectrum_N(testParams, w),label='start',color='purple',linewidth=1)
-                        pylab.plot(w,zspectrum_N(fit_params, w),label='fit',linewidth=2,color='b')
-                        pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
-                        pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
-                        pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
-                        pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
-                        pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='pink') # peak5
-
-                        # Draw vertical lines at peak positions
-                        pylab.axvline(pk1[-1],color='g')
-                        pylab.axvline(pk2[-1],color='r')
-                        pylab.axvline(pk3[-1],color='c')
-                        pylab.axvline(pk4[-1],color='y')
-                        #axvline(pk5[-1],color='purple')                
-
-                        pylab.plot(ppm_filtered,data_watersupp,'o-',color='pink',label='raw')
-                        pylab.xlim(15,-15)
-                        #pylab.ylim(-0.5,0.3)
-                        pylab.title('Fit for pixel {0},{1} \n Residual: {2}'.format(xval,yval,fit_quality[xval,yval]))
-                        pylab.legend(loc='lower right')
-
-                        pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
-                        pylab.clf()
 
         fitcount+=1 # increment fitcounter
     
