@@ -79,27 +79,25 @@ def fit_water_peak(data,offset_freqs,allParams = False):
 
         # Also, normalize the data so the fit is easier
 
-        params_passed = [numpy.max(data),-1.,0.6,0.03]
+        params_passed = [numpy.max(data),-1.,0.6,fitted_freqs[numpy.argmin(data)]]
 
         fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(h_residual_Zspectrum_N,
             params_passed,
             args=(data, offset_freqs),
             full_output = True,
             maxfev = 200)
-
-        #print mesg
-        #print infodict
-
+        
         if allParams:
             return fit_params
-
         else:
-            return fit_params[2]
+            return fit_params[3]
 
 def shift_water_peak(scn_to_analyse=None, 
                      bbox = None,
                      pdata_num = 0,
                      **kwargs):
+
+# DELETE; likely not needed anymore March 15, 2017
     
     """
     Returns a new array that should replace 
