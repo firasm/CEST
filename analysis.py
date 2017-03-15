@@ -637,37 +637,40 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
             return params    
 
     scn = sarpy.Scan(scn_to_analyse)
-    roi = scn.adata['roi'].data
+    try:
+        roi = scn.adata['roi'].data
+    except KeyError:
+        roi = scn.pdata[0].data[:,:,0]*0+1
     datashape = roi.shape
-    roi = numpy.reshape(roi,[roi.shape[0],roi.shape[1],1])
-    cestscan_roi = scn.pdata[0].data * roi       
+    roi_reshaped = numpy.reshape(roi,[roi.shape[0],roi.shape[1],1])
+    cestscan_roi = scn.pdata[0].data * roi_reshaped       
 
     # Fit multiple peaks, need some empty arrays
-    offst = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk1_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk1_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk1_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    offst = numpy.empty_like(roi) + numpy.nan
+    pk1_amp = numpy.empty_like(roi) + numpy.nan
+    pk1_pos = numpy.empty_like(roi) + numpy.nan
+    pk1_width = numpy.empty_like(roi) + numpy.nan
 
-    pk2_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk2_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk2_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk2_amp = numpy.empty_like(roi) + numpy.nan
+    pk2_pos = numpy.empty_like(roi) + numpy.nan
+    pk2_width = numpy.empty_like(roi) + numpy.nan
 
-    pk3_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk3_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk3_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk3_amp = numpy.empty_like(roi) + numpy.nan
+    pk3_pos = numpy.empty_like(roi) + numpy.nan
+    pk3_width = numpy.empty_like(roi) + numpy.nan
 
-    pk4_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk4_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk4_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk4_amp = numpy.empty_like(roi) + numpy.nan
+    pk4_pos = numpy.empty_like(roi) + numpy.nan
+    pk4_width = numpy.empty_like(roi) + numpy.nan
 
-    pk5_amp = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk5_pos = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    pk5_width = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    pk5_amp = numpy.empty_like(roi) + numpy.nan
+    pk5_pos = numpy.empty_like(roi) + numpy.nan
+    pk5_width = numpy.empty_like(roi) + numpy.nan
 
-    fit_quality = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
-    fit_params_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
-    fit_params_arr[:] = numpy.nan
-    ppm_corrected_arr = numpy.empty_like(scn.adata['roi'].data, dtype=object)
+    fit_quality = numpy.empty_like(roi) + numpy.nan
+    fit_params_arr = numpy.empty_like(roi, dtype=object)
+    fit_params_arr[:] = [numpy.nan]
+    ppm_corrected_arr = numpy.empty_like(roi, dtype=object)
 
     # Defining parameters
 
@@ -696,7 +699,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
     water_fit_freqs_ind = sorted([ppm_filtered.index(c) for c in water_fit_freqs])
 
     # Create some empty arrays
-    water_shifts = numpy.empty_like(scn.adata['roi'].data) + numpy.nan
+    water_shifts = numpy.empty_like(roi) + numpy.nan
     new_shifted = numpy.empty(shape=(water_shifts.shape[0], water_shifts.shape[0], len(ppm_filtered))) + numpy.nan
 
     # Fit count, this counts the number of rounds the data has been fit
@@ -807,7 +810,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1, saveGraphs = False):
         fitcount+=1 # increment fitcounter
     
     # Save the data as a structured array
-    newstruct = numpy.empty(scn.adata['roi'].data.shape, dtype=[('offset', 'float32'),
+    newstruct = numpy.empty(roi.shape, dtype=[('offset', 'float32'),
        ('A1', 'float32'),('w1', 'float32'),('p1', 'float32'),
        ('A2', 'float32'),('w2', 'float32'),('p2', 'float32'),
        ('A3', 'float32'),('w3', 'float32'),('p3', 'float32'),
