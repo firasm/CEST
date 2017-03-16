@@ -635,10 +635,20 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
             return params    
 
     scn = sarpy.Scan(scn_to_analyse)
+    pdata_num = 0
+    x_size = scn.pdata[pdata_num].data.shape[0]
+    y_size = scn.pdata[pdata_num].data.shape[1]  
     try:
         roi = scn.adata['roi'].data
     except KeyError:
         roi = scn.pdata[0].data[:,:,0]*0+1
+
+    # Get the bbox so that the whole image isn't fit
+    try:
+        bbox = scn.adata['bbox'].data
+    except KeyError:       
+        bbox = numpy.array([0,x_size-1,0,y_size-1])   
+
     datashape = roi.shape
     roi_reshaped = numpy.reshape(roi,[roi.shape[0],roi.shape[1],1])
     cestscan_roi = scn.pdata[0].data * roi_reshaped       
@@ -678,7 +688,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
     ppm_limit_max = 50
     exclude_ppm = 200
     normalize_to_ppm = 66.6
-    pdata_num = 0
+    
 
     possibleNormalizations = [i for i, x in enumerate(freq_list) if numpy.abs(x - normalize_to_ppm) <1E-4]
     normalizeTo = possibleNormalizations[-1]
@@ -704,8 +714,8 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
     fitcount = 0
 
     while fitcount < fitrounds:
-        for xval in range(new_shifted.shape[0]):    
-            for yval in range(new_shifted.shape[1]):
+        for xval in range(bbox[0],bbox[1]):    
+            for yval in range(bbox[2],bbox[3]):
                 # Get the data and normalize it to index of normalize_to_ppm
                 tmp = cestscan_roi[xval,yval][ppm_filtered_ind] / scn.pdata[0].data[xval,yval,normalizeTo]           
 
