@@ -734,19 +734,12 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
                         print(shift)
                         pass            
 
-                    # Then do another water fit on the processed data to subtract it away
-                    #shiftParams2 = fit_water_peak(new_shifted[xval,yval][water_fit_freqs_ind],water_fit_freqs,allParams=True)
-
-                    # Subtract water peak away
-                    #data_watersupp = new_shifted[xval,yval] - zspectrum_N(shiftParams2,ppm_filtered)
-                    data_watersupp = new_shifted[xval,yval]
-
                     testParams = get_neighbours_starting(fit_params_arr,xval,yval)
 
                     fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
                                                                 h_residual_Zspectrum_N,
                                                                 testParams,
-                                                                args=(data_watersupp, ppm_filtered), 
+                                                                args=(new_shifted, ppm_filtered), 
                                                                 full_output = True,
                                                                 maxfev = 900,
                                                                 ftol =1E-9)
@@ -781,7 +774,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
                     pk5_width[xval,yval] = fit_params[14]            
                     pk5_pos[xval,yval] = fit_params[15]                
                   
-                    fit_quality[xval,yval] = scipy.nansum(numpy.abs(data_watersupp - zspectrum_N(fit_params,ppm_filtered)))
+                    fit_quality[xval,yval] = scipy.nansum(numpy.abs(new_shifted - zspectrum_N(fit_params,ppm_filtered)))
                     fit_params_arr[xval,yval] = fit_params
                     ppm_corrected_arr[xval,yval] = ppm_filtered
 
