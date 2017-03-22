@@ -567,7 +567,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
 
             if i==1: #pk1  
                 # lw penalty
-                penalty += penaltyfn(params[i+1], centre=1.3, scale=1E-3, trough_width=.1)  
+                penalty += penaltyfn(params[i+1], centre=0, scale=1E-3, trough_width=.5) # trough 0.3/1/1 ??  
                 # w0 penalty
                 penalty += penaltyfn(params[i+2], centre=2.2, scale=1E-3, trough_width=.2)
                 #print('\t {0}: {1}'.format(i,penalty))
@@ -808,6 +808,6 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
     newstruct['w5'] = pk5_width
     newstruct['p5'] = pk5_pos
 
-    return {'':newstruct}
+    return {'':newstruct,'fit_quality':fit_quality}
 
 
