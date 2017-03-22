@@ -26,13 +26,13 @@ def h_zspectrum_N(params,freqs):
         # Construct the multiple lorentzians added together
         tmp = numpy.divide(A,(1+4*((freqs-w0)/lw)**2))
         
-        arr = arr+tmp
+        arr += tmp
     return (arr+shift)
 
 def h_zspectrum_New(paramStructuredArray,freqs):
     ''' Updated Zspectrum N function to now require a structured array of params'''
     
-    arr = numpy.empty_like(freqs)*0
+    arr = numpy.zeros_like(freqs)
     shift =  paramStructuredArray['offset']
 
     # Convert this to a regular list so that it can be added as lorentzians
