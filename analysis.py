@@ -739,7 +739,7 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
                     fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
                                                                 h_residual_Zspectrum_N,
                                                                 testParams,
-                                                                args=(new_shifted, ppm_filtered), 
+                                                                args=(new_shifted[xval,yval], ppm_filtered), 
                                                                 full_output = True,
                                                                 maxfev = 900,
                                                                 ftol =1E-9)
