@@ -810,4 +810,40 @@ def fit_5_peaks_cest(scn_to_analyse, fitrounds = 1):
 
     return {'':newstruct,'fit_quality':fit_quality}
 
+def plotIndividualPeaks(fit_params):
+    ''' This function takes in a full fit and returns a plot of the individual peaks plotted on the flipped axis'''
 
+    shift =  paramStructuredArray['offset']
+
+    w = numpy.arange(-20.,20.,0.01)
+
+    pk1 = [fit_params[0]]+list(fit_params[1:4])
+    pk2 = [fit_params[0]]+list(fit_params[4:7])
+    pk3 = [fit_params[0]]+list(fit_params[7:10])
+    pk4 = [fit_params[0]]+list(fit_params[10:13])
+    pk5 = [fit_params[0]]+list(fit_params[13:16]) 
+
+    # Separate this out into a different function - this is absurd.
+    pylab.figure(figsize=(12,8))                         
+
+    pylab.plot(w,zspectrum_N(pk1,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk1[-1],2),numpy.round(pk1[2],2),numpy.round(pk1[1],2)),color='g') # peak1
+    pylab.plot(w,zspectrum_N(pk2,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk2[-1],2),numpy.round(pk2[2],2),numpy.round(pk2[1],2)),color='r') # peak2
+    pylab.plot(w,zspectrum_N(pk3,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk3[-1],2),numpy.round(pk3[2],2),numpy.round(pk3[1],2)),color='c') # peak3
+    pylab.plot(w,zspectrum_N(pk4,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk4[-1],2),numpy.round(pk4[2],2),numpy.round(pk4[1],2)),color='y') # peak4
+    pylab.plot(w,zspectrum_N(pk5,w),'-',label='w0 = {0}, lw = {1}, A={2}'.format(numpy.round(pk5[-1],2),numpy.round(pk5[2],2),numpy.round(pk5[1],2)),color='pink') # peak5
+
+    # Draw vertical lines at peak positions
+    pylab.axvline(pk1[-1],color='g')
+    pylab.axvline(pk2[-1],color='r')
+    pylab.axvline(pk3[-1],color='c')
+    pylab.axvline(pk4[-1],color='y')
+    #axvline(pk5[-1],color='purple')                
+
+    pylab.plot(ppm_filtered,data_watersupp,'o-',color='pink',label='raw')
+    pylab.xlim(15,-15)
+    #pylab.ylim(-0.5,0.3)
+    pylab.title('Fit for pixel {0},{1} \n Residual: {2}'.format(xval,yval,fit_quality[xval,yval]))
+    pylab.legend(loc='lower right')
+
+    pylab.savefig('pixelBypixel/{0}_{1}-{2},{3}.png'.format(scn.patientname,scn.studyname,xval,yval,dpi=400))
+    pylab.clf()
