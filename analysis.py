@@ -97,6 +97,22 @@ def h_superlorentzian(A,w,p,freqs):
         s+=temp
     return A*s/numpy.max(s)
 
+def h_peak_N(params,freqs,peak = 1):
+    ''' Zspectrum N function to only return one peak'''
+
+    paramStructuredArray = h_convertBetweenStructArrays(params,toType = 'struct')
+
+    # First get the water peak as a super lorentzian
+    shift =  paramStructuredArray['offset']
+
+    # ^ needs to change to -1 and additional things added for water peak (super lorentzian)
+    # Genius of @drSar, did not know you could access structuredArrays this way
+    A = paramStructuredArray['A{}'.format(peak)][0]+1E-5
+    w = paramStructuredArray['w{}'.format(peak)][0]+1E-6
+    p = paramStructuredArray['p{}'.format(peak)][0]+1E-7
+
+    return h_lorentzian(A,w,p,freqs) + shift    
+
 def h_zspectrum_N(params,freqs):
     ''' Updated Zspectrum N function to now require a structured array of params'''
 
