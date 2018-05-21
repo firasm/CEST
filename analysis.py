@@ -219,40 +219,20 @@ def fit_water_peak(data,offset_freqs,allParams = False):
     returns the water offset frequency
 
     """
+    params = lmfit.Parameters()
 
-    # First get rid of all attempts to pass in bad data. If there are any nans in there, toss it.
+    # add with tuples: (NAME VALUE VARY MIN  MAX  EXPR  BRUTE_STEP)    
+    params.add_many(('DCoffset', 1, True, None, None, None),
+                    ('A_0', -0.8, True, None, None, None),
+                    ('w_0', 1.3, True, None, None, None),
+                    ('p_0', 0.01, True, None, None, None),
+    )        
 
-    if numpy.isnan(numpy.sum(data)):
-        return numpy.nan
-
-    else:
-
-        # Presumably the maximum signal will be at 
-        # some large frequency offset, so let's just
-        # use that as our baseline parameter
-
-        params = numpy.zeros((1), dtype=[('offset', 'float64'),('water_A', 'float64'), 
-                                         ('water_w', 'float64'),('water_p', 'float64')])
-
-        # Also, normalize the data so the fit is easier
-
-        params['offset'] = numpy.max(data)
-        params['water_A'] = -1.
-        params['water_w'] = 0.6
-        params['water_p'] = offset_freqs[numpy.argmin(data)]
-
-        params = h_convertBetweenStructArrays(params, toType = 'array')
-
-        fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(h_residual_Zspectrum_N,
-                                                                    params,
-                                                                    args=(data, offset_freqs),
-                                                                    full_output = True,
-                                                                    maxfev = 200)
-        
-        if allParams:
-            return fit_params
-        else:
-            return h_convertBetweenStructArrays(params, toType = 'struct')['water_p']
+    try:
+        out = lmfit.minimize(h_zspectrum_N_residuals, params, args=(numpy.array(offset_freqs), data))
+        return numpy.array(out.params['p_0'].value)
+    except ValueError: # when the data given is nonsense
+        return numpy.array(0)
 
 def shift_water_peak(scn_to_analyse=None, 
                      bbox = None,
@@ -304,137 +284,6 @@ def shift_water_peak(scn_to_analyse=None,
             water_shift_map[x,y] = fit_water_peak(fit_data,freq_list)
 
     return water_shift_map
-
-################################################
-
-####### Displaying and Plotting Functions #######    
-
-################################################
-
-def cest_spectrum(scn_to_analyse,
-                  xval,
-                  yval,
-                  shift_water_peak = True,
-                  normalize=True,
-                  normalize_to_ppm = 200,
-                  ppm_limit_min = -50,
-                  ppm_limit_max = 50,
-                  exclude_ppm = 66.6,
-                  pdata_num = 0):
-    
-    '''
-    Does the grunt work of processing freqs to give
-    a sequential list of frequencies (rather than alternating).
-
-    :param str scn_to_analyse: scan.shortdirname
-    :param bool shift_water_peak: Interpolates intensities so the water peak is at 0 ppm (you can now average after this)
-    :param float normalize_to_ppm: freq to normalize to
-    :param float ppm_limit: Only return frequencies within +ppm_limit and -ppm_limit
-    :param float exclude_ppm: Exclude the dummy frequencies
-    :param int pdata_num: reconstruction number, according to python numbering.
-            default reconstruction is pdata_num = 0.
-
-    :return: new (frequencies in sequential order)
-             tmp (data at frequencies in 'new')
-    '''
-    scn = sarpy.Scan(scn_to_analyse)
-
-    # Get the Frequencies and make them sequential 
-    # so that alternating points don't plot badly
-
-    # First get the freq list
-    freq_list = scn.method.CEST_FreqListPPM
-
-    if normalize:
-    # Find the frequency to normalize to, throw error if not found
-        possibleNormalizations = [i for i, x in enumerate(freq_list) if numpy.abs(x - normalize_to_ppm) <1E-4]
-
-        # By default, select the LAST instance of the freq to avoid approach to steady state issues
-        normalizeTo = possibleNormalizations[-1]
-
-    # Get only the frequencies within the ppm_limit
-    new = [f for f in freq_list if f > ppm_limit_min]
-    new = [f for f in new if f < ppm_limit_max]
-
-    # Exclude the dummy frequencies at the beginning (66.6 ppm)
-    new = sorted([n for n in new if n!= exclude_ppm])
-
-    # Get the index of the good frequencies relative to the original list 
-    ind = [freq_list.index(c) for c in new]  
-
-    if normalize:
-        # Get the data and normalize it to index of normalize_to_ppm
-        tmp = scn.pdata[pdata_num].data[xval,yval,:] / scn.pdata[0].data[xval,yval,normalizeTo] 
-
-    else:
-
-        tmp = scn.pdata[pdata_num].data[xval,yval,:]
-
-    if shift_water_peak:
-
-        # If there is a strong CEST signal, it actually results in a bad fit. So 
-        # I'm going to find the lowest frequency 
-        lowest_freq = numpy.min(numpy.abs(freq_list))
-        fitted_freqs = [f for f in freq_list if numpy.abs(f)<lowest_freq+1]
-        lowest_freq_ind = sorted([freq_list.index(c) for c in fitted_freqs])
-        shift = fit_water_peak(tmp[lowest_freq_ind],fitted_freqs)
-
-        # Interpolation happens here
-
-        s_shifted_back = scipy.interp(new+shift, new, tmp[ind])
-
-        #new_shifted = [n - shift for n in new]
-
-        return new, s_shifted_back
-
-    else:
-        # Return the x-axis (new) and the y-axis (tmp)
-        return new,tmp[ind]
-
-def generate_offset_list(additionalDict = None,
-                         manuallyInsertedOffsets = None,
-                         manuallyInsertedPositions = None,
-                         alternateFreqs = True):
-
-    if additionalDict is None:
-        additionalDict = collections.OrderedDict([
-                               ('dummy',[-60,60,10]),
-                               ('start',[-5.1,5.1,0.1]),
-                               ('baseline',[-60,60,10]),       
-                               ('2.5',[2.2,2.5,0.01]),
-                               ('3.4',[3.3,3.5,0.01])
-                              ])
-
-    offsetList = []
-
-    for k,v in list(additionalDict.items()):
-
-        offsetList.extend(numpy.round(numpy.arange(v[0],
-                                                   v[1],
-                                                   v[2]),3))
-
-    # Reorder the list so it's alternating
-    # (largest -> smallest -> next largest -> next smallest ->)
-    # Gotten from: http://stackoverflow.com/questions/17436870/python-alternating-elements-of-a-sorted-array
-    # Of course :-)
-
-    if alternateFreqs is True:
-        offsetList = list(sum(list(zip(reversed(offsetList), offsetList)), ())[:len(offsetList)])
-
-    # Now manually insert offsets and frequency
-    if manuallyInsertedOffsets is None:
-        print([numpy.float("{:.3f}".format(off)) for off in offsetList])
-        return numpy.round(offsetList,3)
-    else:
-
-        assert len(manuallyInsertedPositions) == len(manuallyInsertedOffsets), "List lengths not the same, please check input lists"
-        
-        for off,pos in zip(manuallyInsertedOffsets,manuallyInsertedPositions):
-
-            offsetList.insert(pos,off)
-
-        print([numpy.float("{:.3f}".format(off)) for off in offsetList])
-        return numpy.round(offsetList,3)            
 
 def cest_vtc(scn_to_analyse):
 
@@ -521,8 +370,48 @@ def cest_vtc(scn_to_analyse):
     axs.set_axis_off()        
 
 
-def plotIndividualPeaks(fit_params):
+def plotCestPeaks(scn_to_analyse, cest_adata):
     ''' This function takes in a full fit and returns a plot of the individual peaks plotted on the flipped axis'''
+
+    scn = sarpy.Scan(scn_to_analyse)
+    result = scn.adata[cest_adata].data
+    freqs = numpy.arange(-20,20,0.1)
+
+    pylab.figure(figsize=(10,10))
+    pylab.subplot(221)
+    pylab.plot(ppm_filtered,new_shifted,'.',label='raw')
+    pylab.plot(freqs,cest.analysis.h_zspectrum_N(fit_params,freqs),label='fit')
+    pylab.xlim(10,-10)
+
+    fps = cest.analysis.h_convertBetweenStructArrays(fit_params,toType='struct')
+    for i in numpy.arange(1,int(len(fps.dtype.descr)/3)):
+        pylab.plot(freqs,1-cest.analysis.h_peak_N(fit_params,freqs,i))
+
+    pylab.axvline(2.2,ymin=0,label='2.2 amine',color='y', alpha=0.4)
+    pylab.axvline(3.5,ymin=0,label='3.5 amide',color='r', alpha=0.4)
+    pylab.axvline(-3.25,ymin=0,label='-3.25 aliphatic',color='g', alpha=0.4)
+    pylab.axvline(-3.0,ymin=0,label='-3.0 ppm-amine')    
+    #pylab.axvline(1.5,ymin=0.6,label='1.5 OH',color='b', alpha=0.4)
+
+    pylab.subplot(222)
+    pylab.plot(ppm_filtered,new_shifted,'.',label='raw')
+    pylab.plot(freqs,cest.analysis.h_zspectrum_N(fit_params,freqs),label='fit')
+
+    pylab.xlim(1,-1)
+    #pylab.ylim(0,1)
+    pylab.legend()
+
+
+
+
+
+
+
+
+
+
+
+    ###############################
 
     shift =  paramStructuredArray['offset']
 

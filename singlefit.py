@@ -332,9 +332,9 @@ while fitcount < fitrounds:
 
     if fitcount>0: # Use parameters from last fit 
         testParams = cest.analysis.h_convertBetweenStructArrays(newstruct,toType='array')
-
     else: # Get initial starting parameters
         testParams = cest.analysis.get_neighbours_starting()
+        originaltestParams = cest.analysis.h_convertBetweenStructArrays(testParams,toType='struct').copy()       
         testParams = cest.analysis.h_convertBetweenStructArrays(testParams,toType = 'array')
 
     fit_params,cov,infodict,mesg,ier = scipy.optimize.leastsq(
